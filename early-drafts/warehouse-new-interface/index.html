@@ -1,0 +1,419 @@
+<!doctype html><html><head><meta charset=utf8><meta name=viewport content="width=device-width,initial-scale=1,viewport-fit=cover"><style>:root{color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}html{scroll-padding-top:env(safe-area-inset-top,0px)}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#fff;color:#000}img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}</style></head><body>
+<meta charset="utf-8">
+<title>Warehouse new interface</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans+KR:wght@400;500;600&family=Instrument+Serif:ital@0;1&display=swap">
+<style>
+/* Layout: a full-bleed WebGL field of lost objects on hub-colored lightbox plates; UI floats over it as a pill bar (top), legend (bottom-right) and a record sheet (right / bottom on phones). Single light look, chosen on purpose. */
+:root{
+  --ground:#F6F8FB;
+  --sky:#FFFFFF;
+  --floor:#D6EBF8;
+  --ink:#1B2130;
+  --muted:#667086;
+  --line:#D3DAE6;
+  --panel:rgba(255,255,255,.92);
+  --lib:#C0E7F8;
+  --jo:#FDD7B5;
+  --bug:#C5CDFF;
+  --none:#E3E6EC;
+  --focus:#3B6FD8;
+  --f-display:"Instrument Serif", "Times New Roman", serif;
+  --f-body:"IBM Plex Sans KR", "Apple SD Gothic Neo", "Malgun Gothic", system-ui, sans-serif;
+  --f-mono:"IBM Plex Mono", ui-monospace, "SFMono-Regular", Menlo, monospace;
+  color-scheme: light;
+}
+html,body{height:100%}
+body{background:var(--ground);color:var(--ink);font-family:var(--f-body);font-size:14px;overflow:hidden;-webkit-font-smoothing:antialiased}
+#stage{position:fixed;inset:0;background:linear-gradient(to bottom,var(--sky) 0%,var(--sky) 58%,var(--floor) 100%);touch-action:none}
+#stage canvas{display:block;width:100%;height:100%;outline:none}
+.grain{position:fixed;inset:0;pointer-events:none;opacity:.045;mix-blend-mode:multiply;background-size:180px 180px}
+
+/* Top bar */
+.top{position:fixed;left:0;right:0;top:0;z-index:5;display:flex;flex-direction:column;align-items:center;gap:10px;
+  padding-top:calc(14px + env(safe-area-inset-top,0px));padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));pointer-events:none}
+.pill{pointer-events:auto;display:flex;align-items:center;gap:14px;width:min(640px,100%);min-width:0;height:46px;padding:0 8px 0 20px;border:1.5px solid var(--ink);border-radius:999px;background:var(--panel);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px)}
+.mark{font-family:var(--f-display);font-size:22px;letter-spacing:.01em;white-space:nowrap;line-height:1}
+.mark i{font-style:italic}
+.pill input{flex:1;min-width:0;border:0;background:transparent;font:inherit;font-size:14px;color:var(--ink);padding:8px 4px;border-left:1px solid var(--line);padding-left:14px}
+.pill input::placeholder{color:var(--muted)}
+.pill input:focus{outline:none}
+.pill:focus-within{box-shadow:0 0 0 3px rgba(59,111,216,.18)}
+.count{font-family:var(--f-mono);font-size:12px;color:var(--muted);white-space:nowrap;padding-right:10px;font-variant-numeric:tabular-nums}
+.row{pointer-events:auto;display:flex;flex-wrap:wrap;justify-content:center;gap:6px;max-width:100%}
+.chip,.seg button{font:inherit;font-size:12.5px;border:1px solid var(--line);background:var(--panel);color:var(--ink);border-radius:999px;padding:6px 12px;cursor:pointer;display:inline-flex;align-items:center;gap:7px;white-space:nowrap}
+.chip .sw{width:10px;height:10px;border-radius:3px;border:1px solid rgba(27,33,48,.25)}
+.chip[aria-pressed="true"]{border-color:var(--ink);background:var(--ink);color:#fff}
+.chip[aria-pressed="true"] .sw{border-color:#fff}
+.seg{display:inline-flex;border:1px solid var(--ink);border-radius:999px;overflow:hidden;background:var(--panel)}
+.seg button{border:0;border-radius:0;padding:6px 14px}
+.seg button[aria-pressed="true"]{background:var(--ink);color:#fff}
+button:focus-visible,input:focus-visible{outline:2px solid var(--focus);outline-offset:2px}
+
+/* Legend */
+.legend{position:fixed;z-index:4;right:max(16px,env(safe-area-inset-right,0px));bottom:calc(16px + env(safe-area-inset-bottom,0px));width:248px;background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:12px 14px;backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px)}
+.legend h2{margin:0 0 8px;font-family:var(--f-mono);font-weight:500;font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}
+.legend ul{list-style:none;margin:0;padding:0;display:grid;gap:6px}
+.legend li{display:grid;grid-template-columns:14px 1fr auto;gap:8px;align-items:center;font-size:12.5px}
+.legend .sw{width:14px;height:14px;border-radius:3px;border:1px solid rgba(27,33,48,.2)}
+.legend .lv{font-family:var(--f-mono);font-size:11.5px;color:var(--muted);font-variant-numeric:tabular-nums}
+.legend p{margin:9px 0 0;font-size:11.5px;line-height:1.5;color:var(--muted)}
+
+/* Hint */
+.hint{position:fixed;z-index:4;left:max(16px,env(safe-area-inset-left,0px));bottom:calc(16px + env(safe-area-inset-bottom,0px));max-width:min(420px,calc(100% - 300px));font-family:var(--f-mono);font-size:11.5px;line-height:1.7;color:var(--muted)}
+.hint b{font-weight:500;color:var(--ink)}
+.walk{display:none;gap:6px;margin-top:8px}
+.walk button{font:inherit;font-family:var(--f-body);font-size:13px;border:1px solid var(--ink);background:var(--panel);border-radius:999px;padding:8px 14px;color:var(--ink);touch-action:none;user-select:none;-webkit-user-select:none}
+@media (pointer:coarse){.walk{display:flex}}
+
+/* Record sheet */
+.sheet{position:fixed;z-index:6;top:0;right:0;bottom:0;width:min(400px,100%);background:var(--panel);backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);border-left:1px solid var(--line);display:flex;flex-direction:column;
+  padding-top:env(safe-area-inset-top,0px);padding-right:env(safe-area-inset-right,0px);padding-bottom:env(safe-area-inset-bottom,0px);transform:translateX(102%);transition:transform .35s cubic-bezier(.2,.7,.2,1)}
+.sheet.open{transform:none}
+.sheet-head{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:12px 16px;border-bottom:1px solid var(--line);font-family:var(--f-mono);font-size:12px;color:var(--muted)}
+.sheet-head .nav{display:flex;gap:6px}
+.sheet-head button{font:inherit;border:1px solid var(--line);background:#fff;border-radius:999px;padding:5px 11px;cursor:pointer;color:var(--ink)}
+.sheet-body{overflow-y:auto;padding:16px;display:flex;flex-direction:column;gap:16px;min-height:0}
+.plate{border-radius:10px;aspect-ratio:4/3;display:grid;place-items:center;position:relative;overflow:hidden;max-width:100%}
+.plate::before{content:"";position:absolute;inset:0;background:radial-gradient(ellipse at 50% 45%,rgba(255,255,255,.85),rgba(255,255,255,0) 70%)}
+.plate img{position:relative;max-width:78%;max-height:78%;object-fit:contain}
+.plate .noimg{position:relative;font-family:var(--f-mono);font-size:12px;color:var(--muted);border:1px dashed rgba(27,33,48,.35);padding:22px 26px;border-radius:8px}
+.ai{position:absolute;right:8px;bottom:8px;font-family:var(--f-mono);font-size:10.5px;background:rgba(255,255,255,.8);padding:2px 7px;border-radius:999px;color:var(--muted)}
+.sheet h1{margin:0;font-size:22px;font-weight:600;text-wrap:balance;line-height:1.3}
+.meta{font-family:var(--f-mono);font-size:12px;color:var(--muted);margin-top:4px;line-height:1.6}
+.state{display:flex;flex-direction:column;gap:8px;padding:12px;border:1px solid var(--line);border-radius:8px;background:#fff}
+.badge{align-self:flex-start;font-size:12px;font-weight:500;padding:3px 9px;border-radius:999px;border:1px solid var(--ink)}
+.badge.ret{border-style:dashed;color:var(--muted);border-color:var(--muted)}
+.meter{height:6px;border-radius:3px;background:var(--line);overflow:hidden}
+.meter i{display:block;height:100%;background:var(--ink)}
+.state small{font-size:12px;color:var(--muted);line-height:1.55}
+.rec h3{margin:0 0 8px;font-family:var(--f-mono);font-weight:500;font-size:11.5px;letter-spacing:.06em;color:var(--muted)}
+.rec dl{margin:0;display:grid;gap:10px}
+.rec dt{font-size:12px;color:var(--muted)}
+.rec dd{margin:2px 0 0;font-size:14px;line-height:1.6;overflow-wrap:anywhere}
+.rec .warn{font-size:12px;color:#8A5A12;background:#FFF5E6;border-radius:6px;padding:8px 10px;margin-bottom:10px;line-height:1.5}
+.quote{font-family:var(--f-display);font-size:24px;line-height:1.3;font-style:italic}
+.foot{font-size:11.5px;color:var(--muted);line-height:1.5;border-top:1px solid var(--line);padding-top:12px}
+
+.tip{position:fixed;z-index:5;pointer-events:none;font-family:var(--f-mono);font-size:11.5px;background:var(--ink);color:#fff;padding:4px 8px;border-radius:4px;transform:translate(-50%,-140%);white-space:nowrap}
+
+@media (max-width:720px){
+  .legend{width:auto;left:max(16px,env(safe-area-inset-left,0px));bottom:calc(12px + env(safe-area-inset-bottom,0px));padding:10px 12px}
+  .legend ul{grid-template-columns:1fr 1fr}
+  .legend p{display:none}
+  .hint{bottom:calc(150px + env(safe-area-inset-bottom,0px));max-width:none;right:max(16px,env(safe-area-inset-right,0px))}
+  .hint .keys{display:none}
+  .mark{font-size:18px}
+  .count{display:none}
+  .sheet{top:auto;width:100%;height:78%;border-left:0;border-top:1px solid var(--line);border-radius:14px 14px 0 0;transform:translateY(102%)}
+}
+@media (prefers-reduced-motion:reduce){.sheet{transition:none}}
+</style>
+
+<div id="stage" aria-label="분실물 아카이브 가상공간"></div>
+<div class="grain" id="grain"></div>
+
+<header class="top">
+  <div class="pill">
+    <span class="mark">Mote&rsquo;s <i>Warehouse</i></span>
+    <input id="q" type="search" placeholder="물건 이름으로 찾기 (예: 에어팟, 커터칼)" aria-label="물건 이름으로 찾기" autocomplete="off">
+    <span class="count" id="count"></span>
+  </div>
+  <div class="row">
+    <div class="seg" role="group" aria-label="보기 방식">
+      <button id="m3" aria-pressed="true">입체 · 워킹스루</button>
+      <button id="m2" aria-pressed="false">평면 · 캔버스</button>
+    </div>
+  </div>
+  <div class="row" id="chips" role="group" aria-label="건물 허브 필터"></div>
+</header>
+
+<div class="hint" id="hint">
+  <div class="keys"><b>드래그</b> 둘러보기 · <b>휠 / W S</b> 걸어 들어가기 · <b>A D</b> 옆으로 · <b>Q E</b> 아래·위 · <b>물건 클릭</b> 기록 열기</div>
+  <div class="touchk" hidden><b>한 손가락</b> 둘러보기 · <b>두 손가락</b> 앞뒤로 · <b>물건 탭</b> 기록 열기</div>
+  <div class="walk"><button id="fwd">앞으로</button><button id="back">뒤로</button></div>
+</div>
+
+<aside class="legend" aria-label="건물 허브">
+  <h2>Lightbox plate · 건물 허브</h2>
+  <ul id="legend"></ul>
+  <p>선명도는 주인이 아직 그 물건을 떠올리는 정도입니다. 다시 찾은 물건은 현실로 돌아가 거의 투명합니다.</p>
+</aside>
+
+<aside class="sheet" id="sheet" aria-label="분실물 기록" aria-hidden="true">
+  <div class="sheet-head">
+    <span id="sh-no"></span>
+    <div class="nav">
+      <button id="prev" aria-label="이전 물건">이전</button>
+      <button id="next" aria-label="다음 물건">다음</button>
+      <button id="close" aria-label="기록 닫기">닫기</button>
+    </div>
+  </div>
+  <div class="sheet-body" id="sh-body"></div>
+</aside>
+<div class="tip" id="tip" hidden></div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script>
+const DATA = {"items": [{"no": 1, "cat": "전자기기", "name": "충전기·보조배터리", "place": "강의실", "outcome": "확인 필요(열 밀림)", "note": "노트북 충전 후 가방 챙기다 분실", "hub": "jo", "img": "charger", "clar": 0.8, "returned": false, "recs": [{"src": "A", "ts": "10/07 16:50", "shift": true, "fields": [["잃어버린 때", "2025년 초봄"], ["학기 중 시점", "학기 초"], ["하루 중 시간", "점심시간(12~14시)"], ["알아챈 때", "몇 시간 안에"], ["마지막으로 본 장면", "노트북에서 충전기를 빼고 가방을 챙겼다."], ["물건의 의미", "매일 쓰던 필수품"], ["얽힌 기억", "내 노트북을 연명할 수 있게 해주는 심장같은 존재...항상 얽히지 않게 소중하게 돌돌말아 들고 다니던 기억이 있다"], ["어떻게 잃어버렸나", "어딘가에 두고 왔다"], ["그때 상황", "짐이 많았다"], ["알아챈 순간", "당연히 강의실에 그대로 있을 줄 알고 크게 당황하지 않았다"], ["찾기 위한 노력", "왔던 길을 되짚어 갔다, 주변 사람들에게 물어봤다, 오후분반 수업 친구들이 있는 수업 톡방에 충전기를 본 적 없는지 문의했다"], ["지금 어디에 있을 것 같나", "누군가의 손에"], ["상상한 모습", "양심 없는 새 주인의 손에서 노동 착취를 당하고 있을 것 같다."]], "clar": 4.0, "msg": "", "hub": "jo", "loc": "강의실"}]}, {"no": 2, "cat": "전자기기", "name": "에어팟·이어폰", "place": "강의실", "outcome": "확인 필요(열 밀림)", "note": "선물받은 물건", "hub": "jo", "img": "airpods", "clar": 0.8, "returned": false, "recs": [{"src": "A", "ts": "10/07 16:55", "shift": true, "fields": [["잃어버린 때", "작년 2학기"], ["학기 중 시점", "중간고사 기간"], ["하루 중 시간", "기억나지 않음"], ["알아챈 때", "몇 시간 안에"], ["마지막으로 본 장면", "주머니 속"], ["물건의 의미", "매일 쓰던 필수품"], ["얽힌 기억", "전남자친구가 처음 사준 선물인데 잃어버렸어요.."], ["어떻게 잃어버렸나", "떨어뜨렸다"], ["그때 상황", "피곤하거나 정신이 없었다"], ["알아챈 순간", "아 남친한테 머라말하지"], ["찾기 위한 노력", "왔던 길을 되짚어 갔다, 학교 커뮤니티·SNS에 글을 올렸다"], ["지금 어디에 있을 것 같나", "누군가의 손에"], ["상상한 모습", "다른 사람 귀에 있을것같아요"]], "clar": 4.0, "msg": "", "hub": "jo", "loc": "강의실"}]}, {"no": 3, "cat": "전자기기", "name": "에어팟·이어폰", "place": "강의실", "outcome": "확인 필요(열 밀림)", "note": "", "hub": "jo", "img": "airpods", "clar": 0.2, "returned": false, "recs": [{"src": "A", "ts": "10/07 16:59", "shift": true, "fields": [["잃어버린 때", "2024년 12월 말"], ["학기 중 시점", "기말고사 기간"], ["하루 중 시간", "기억나지 않음"], ["알아챈 때", "한참 뒤에야"], ["마지막으로 본 장면", "동기들한테 과방에서 애플펜슬을 빌려줬다가 어디론가 사라짐"], ["물건의 의미", "매일 쓰던 필수품"], ["얽힌 기억", "산지 6개월도 안된 정품 애플펜슬이었는데 정신없는 기말 기간 중 빌려줬다가 회수를 안해서 잃어버린 것도 모르고 종강하고 나서 며칠 뒤 떠올라서 학교에 다시와서 찾아보니 사라지고 없었음"], ["어떻게 잃어버렸나", "빌려줬다가 돌려받지 못했다"], ["그때 상황", "대화·휴대폰·과제 등에 집중하고 있었다, 피곤하거나 정신이 없었다"], ["알아챈 순간", "와 큰일났다 제발 과방에 있어라 간절히 기도함"], ["찾기 위한 노력", "왔던 길을 되짚어 갔다, 주변 사람들에게 물어봤다"], ["지금 어디에 있을 것 같나", "누군가의 손에"], ["상상한 모습", "정품에 이름표도 안 붙어있었으니 모르고 다른 누군가가 가져갔겠지..."]], "clar": 1.0, "msg": "", "hub": "jo", "loc": "강의실"}]}, {"no": 4, "cat": "전자기기", "name": "충전기·보조배터리", "place": "강의실", "outcome": "확인 필요(열 밀림)", "note": "", "hub": "jo", "img": "cable", "clar": 0.2, "returned": false, "recs": [{"src": "A", "ts": "10/07 16:59", "shift": true, "fields": [["잃어버린 때", "2024년 12월 말"], ["학기 중 시점", "기말고사 기간"], ["하루 중 시간", "기억나지 않음"], ["알아챈 때", "한참 뒤에야"], ["마지막으로 본 장면", "동기들한테 과방에서 애플펜슬을 빌려줬다가 어디론가 사라짐"], ["물건의 의미", "매일 쓰던 필수품"], ["얽힌 기억", "산지 6개월도 안된 정품 애플펜슬이었는데 정신없는 기말 기간 중 빌려줬다가 회수를 안해서 잃어버린 것도 모르고 종강하고 나서 며칠 뒤 떠올라서 학교에 다시와서 찾아보니 사라지고 없었음"], ["어떻게 잃어버렸나", "빌려줬다가 돌려받지 못했다"], ["그때 상황", "대화·휴대폰·과제 등에 집중하고 있었다, 피곤하거나 정신이 없었다"], ["알아챈 순간", "와 큰일났다 제발 과방에 있어라 간절히 기도함"], ["찾기 위한 노력", "왔던 길을 되짚어 갔다, 주변 사람들에게 물어봤다"], ["지금 어디에 있을 것 같나", "누군가의 손에"], ["상상한 모습", "정품에 이름표도 안 붙어있었으니 모르고 다른 누군가가 가져갔겠지..."]], "clar": 1.0, "msg": "", "hub": "jo", "loc": "강의실"}]}, {"no": 5, "cat": "전자기기", "name": "애플펜슬", "place": "강의실·조형관 열람실", "outcome": "못 찾음", "note": "동기에게 빌려준 뒤 회수 못함. A·B 이야기가 같아 동일 물건일 가능성", "hub": "lib", "img": "pencil_a", "clar": 0.4, "returned": false, "recs": [{"src": "A", "ts": "10/07 16:59", "shift": true, "fields": [["잃어버린 때", "2024년 12월 말"], ["학기 중 시점", "기말고사 기간"], ["하루 중 시간", "기억나지 않음"], ["알아챈 때", "한참 뒤에야"], ["마지막으로 본 장면", "동기들한테 과방에서 애플펜슬을 빌려줬다가 어디론가 사라짐"], ["물건의 의미", "매일 쓰던 필수품"], ["얽힌 기억", "산지 6개월도 안된 정품 애플펜슬이었는데 정신없는 기말 기간 중 빌려줬다가 회수를 안해서 잃어버린 것도 모르고 종강하고 나서 며칠 뒤 떠올라서 학교에 다시와서 찾아보니 사라지고 없었음"], ["어떻게 잃어버렸나", "빌려줬다가 돌려받지 못했다"], ["그때 상황", "대화·휴대폰·과제 등에 집중하고 있었다, 피곤하거나 정신이 없었다"], ["알아챈 순간", "와 큰일났다 제발 과방에 있어라 간절히 기도함"], ["찾기 위한 노력", "왔던 길을 되짚어 갔다, 주변 사람들에게 물어봤다"], ["지금 어디에 있을 것 같나", "누군가의 손에"], ["상상한 모습", "정품에 이름표도 안 붙어있었으니 모르고 다른 누군가가 가져갔겠지..."]], "clar": 1.0, "msg": "", "hub": "jo", "loc": "강의실"}, {"src": "B", "ts": "11/05 11:17", "shift": false, "fields": [["적어 준 물건", "애플펜슬"], ["물건 종류", "전자기기 (이어폰, 충전기, 보조배터리 등)"], ["건물", "조형관"], ["건물 안 위치", "열람실·작업실"], ["자세한 장소", "2과실 책상 위"], ["그때의 애착(1–5)", "5"], ["담긴 추억", "산지 몇 달 안된 첫 애플펜슬, 정신없는 기말 기간에 동기들 빌려주다가 똑바로 회수하는거 까먹고 잃어버림"], ["지금 상태", "못 찾았고, 포기했다"], ["지금도 생각나는 정도(1–5)", "3"]], "clar": 3.0, "msg": "", "hub": "lib", "loc": "조형관 / 열람실·작업실"}]}, {"no": 6, "cat": "키링·액세서리", "name": "핑크 안장 낙타인형 키링", "place": "북한산 등산로 초입", "outcome": "못 찾음", "note": "선물받은 키링. A·B 이야기가 같아 동일 물건일 가능성", "hub": "none", "img": "camel", "clar": 0.5, "returned": false, "recs": [{"src": "A", "ts": "10/07 17:40", "shift": false, "fields": [["잃어버린 때", "2024년 여름"], ["학기 중 시점", "시험 기간이 아닌 학기 중"], ["하루 중 시간", "오전(~12시)"], ["알아챈 때", "몇 시간 안에"], ["마지막으로 본 장면", "대장정 가기 전에 체력테스트 한답시고 북한산 초입까지 등산을 갔었는데 등산 시작 전까지 내 가방에 멀쩡하게 달려있던 낙타 키링,,"], ["물건의 의미", "선물받았거나 추억이 담긴 물건"], ["얽힌 기억", "친구가 몽골에서 사다준 핑크색 안장이 달린 귀여운 낙타인형"], ["어떻게 잃어버렸나", "떨어뜨렸다"], ["그때 상황", "평소와 다른 자리·동선이었다"], ["찾기 위한 노력", "왔던 길을 되짚어 갔다, 학교 커뮤니티·SNS에 글을 올렸다"], ["지금 어디에 있을 것 같나", "잃어버린 그 자리 그대로"], ["상상한 모습", "북한산자락 어딘가에서 자유를 즐기며 유유자적"], ["물건에게 하고 싶은 말", "짧은 기간이었지만 내 마이 아꼈다,, 잘 살아라"], ["황당했던 사라짐", "잃어버렸다는 사실을 알고 난 뒤에 제자리에 가봐도 다시 찾은 적이 없어서 슬픕니다"]], "clar": 4.0, "msg": "짧은 기간이었지만 내 마이 아꼈다,, 잘 살아라", "hub": "none", "loc": "정문에서 오른쪽으로 꺾어서 걸어가다보면 나오는 북한산 등산로 초입 근처"}, {"src": "B", "ts": "11/10 17:40", "shift": false, "fields": [["적어 준 물건", "핑크 안장이 달린 낙타인형"], ["물건 종류", "키링"], ["건물", "북한산 등산로"], ["건물 안 위치", "북한산 등산로 초입"], ["자세한 장소", "학교 정문에서 왼쪽으로 새면 나오는 북한산 등산로 시작되는 산 초입 어딘가"], ["그때의 애착(1–5)", "5"], ["담긴 추억", "친구가 몽골 여행 갔다와서 사다준 낙타인형, 받은지 한달도 안돼서 대장정 체력테스트 하러 북한산 등산 갔다가 잃어버리고 말았다."], ["지금 상태", "못 찾았고, 포기했다"], ["지금도 생각나는 정도(1–5)", "1"]], "clar": 1.0, "msg": "", "hub": "none", "loc": "북한산 등산로 / 북한산 등산로 초입"}]}, {"no": 7, "cat": "필기구·작업도구", "name": "버티컬 마우스", "place": "강의실", "outcome": "못 찾음", "note": "매일 쓰던 물건", "hub": "jo", "img": "mouse", "clar": 0.2, "returned": false, "recs": [{"src": "A", "ts": "10/08 13:45", "shift": false, "fields": [["잃어버린 때", "24년 10월"], ["학기 중 시점", "중간고사 기간"], ["하루 중 시간", "오전(~12시)"], ["알아챈 때", "몇 시간 안에"], ["마지막으로 본 장면", "강의실 책상에서 쓰고 수업끝나고 두고갔다"], ["물건의 의미", "매일 쓰던 필수품"], ["얽힌 기억", "처음으로써본 버티컬마우스라 애정이 있는 물건이었다"], ["어떻게 잃어버렸나", "어딘가에 두고 왔다"], ["그때 상황", "짐이 많았다, 피곤하거나 정신이 없었다"], ["알아챈 순간", "과실에 돌아와서 노트북쓰려고했을때"], ["찾기 위한 노력", "왔던 길을 되짚어 갔다"], ["지금 어디에 있을 것 같나", "누군가의 손에"], ["상상한 모습", "누가훔쳐간거같은데 잘쓰세요.."], ["물건에게 하고 싶은 말", "미안하다 못지켜줘서"], ["황당했던 사라짐", "핸드폰이 사라져서 찾고있는데 주머니에있었다.."]], "clar": 1.0, "msg": "미안하다 못지켜줘서", "hub": "jo", "loc": "강의실"}]}, {"no": 8, "cat": "전자기기", "name": "휴대폰", "place": "장소 불명", "outcome": "못 찾음", "note": "동일 응답 복수 항목", "hub": "none", "img": "iphone", "clar": 1.0, "returned": false, "recs": [{"src": "A", "ts": "10/08 13:56", "shift": false, "fields": [["학기 중 시점", "기억나지 않음"], ["하루 중 시간", "기억나지 않음"], ["알아챈 때", "잃어버린 직후 바로"], ["물건의 의미", "매일 쓰던 필수품"], ["어떻게 잃어버렸나", "어딘가에 두고 왔다"], ["그때 상황", "급하게 이동 중이었다, 대화·휴대폰·과제 등에 집중하고 있었다"], ["찾기 위한 노력", "왔던 길을 되짚어 갔다, 학교 분실물 보관소·행정실에 문의했다"], ["지금 어디에 있을 것 같나", "이미 폐기되었다"]], "clar": 5.0, "msg": "", "hub": "none", "loc": "어디서 잃어버렸는지 모르겠다"}]}, {"no": 9, "cat": "지갑·카드", "name": "지갑·학생증·카드", "place": "장소 불명", "outcome": "못 찾음", "note": "동일 응답 복수 항목", "hub": "none", "img": "idcard", "clar": 1.0, "returned": false, "recs": [{"src": "A", "ts": "10/08 13:56", "shift": false, "fields": [["학기 중 시점", "기억나지 않음"], ["하루 중 시간", "기억나지 않음"], ["알아챈 때", "잃어버린 직후 바로"], ["물건의 의미", "매일 쓰던 필수품"], ["어떻게 잃어버렸나", "어딘가에 두고 왔다"], ["그때 상황", "급하게 이동 중이었다, 대화·휴대폰·과제 등에 집중하고 있었다"], ["찾기 위한 노력", "왔던 길을 되짚어 갔다, 학교 분실물 보관소·행정실에 문의했다"], ["지금 어디에 있을 것 같나", "이미 폐기되었다"]], "clar": 5.0, "msg": "", "hub": "none", "loc": "어디서 잃어버렸는지 모르겠다"}]}, {"no": 10, "cat": "전자기기", "name": "에어팟·이어폰", "place": "장소 불명", "outcome": "못 찾음", "note": "동일 응답 복수 항목", "hub": "none", "img": "airpods", "clar": 1.0, "returned": false, "recs": [{"src": "A", "ts": "10/08 13:56", "shift": false, "fields": [["학기 중 시점", "기억나지 않음"], ["하루 중 시간", "기억나지 않음"], ["알아챈 때", "잃어버린 직후 바로"], ["물건의 의미", "매일 쓰던 필수품"], ["어떻게 잃어버렸나", "어딘가에 두고 왔다"], ["그때 상황", "급하게 이동 중이었다, 대화·휴대폰·과제 등에 집중하고 있었다"], ["찾기 위한 노력", "왔던 길을 되짚어 갔다, 학교 분실물 보관소·행정실에 문의했다"], ["지금 어디에 있을 것 같나", "이미 폐기되었다"]], "clar": 5.0, "msg": "", "hub": "none", "loc": "어디서 잃어버렸는지 모르겠다"}]}, {"no": 11, "cat": "필기구·작업도구", "name": "필기구", "place": "장소 불명", "outcome": "못 찾음", "note": "동일 응답 복수 항목", "hub": "none", "img": "pens", "clar": 1.0, "returned": false, "recs": [{"src": "A", "ts": "10/08 13:56", "shift": false, "fields": [["학기 중 시점", "기억나지 않음"], ["하루 중 시간", "기억나지 않음"], ["알아챈 때", "잃어버린 직후 바로"], ["물건의 의미", "매일 쓰던 필수품"], ["어떻게 잃어버렸나", "어딘가에 두고 왔다"], ["그때 상황", "급하게 이동 중이었다, 대화·휴대폰·과제 등에 집중하고 있었다"], ["찾기 위한 노력", "왔던 길을 되짚어 갔다, 학교 분실물 보관소·행정실에 문의했다"], ["지금 어디에 있을 것 같나", "이미 폐기되었다"]], "clar": 5.0, "msg": "", "hub": "none", "loc": "어디서 잃어버렸는지 모르겠다"}]}, {"no": 12, "cat": "의류·잡화", "name": "우산", "place": "장소 불명", "outcome": "못 찾음", "note": "동일 응답 복수 항목", "hub": "none", "img": "umbrella_long", "clar": 1.0, "returned": false, "recs": [{"src": "A", "ts": "10/08 13:56", "shift": false, "fields": [["학기 중 시점", "기억나지 않음"], ["하루 중 시간", "기억나지 않음"], ["알아챈 때", "잃어버린 직후 바로"], ["물건의 의미", "매일 쓰던 필수품"], ["어떻게 잃어버렸나", "어딘가에 두고 왔다"], ["그때 상황", "급하게 이동 중이었다, 대화·휴대폰·과제 등에 집중하고 있었다"], ["찾기 위한 노력", "왔던 길을 되짚어 갔다, 학교 분실물 보관소·행정실에 문의했다"], ["지금 어디에 있을 것 같나", "이미 폐기되었다"]], "clar": 5.0, "msg": "", "hub": "none", "loc": "어디서 잃어버렸는지 모르겠다"}]}, {"no": 13, "cat": "의류·잡화", "name": "의류·모자·장갑", "place": "장소 불명", "outcome": "못 찾음", "note": "동일 응답 복수 항목", "hub": "none", "img": "cap", "clar": 1.0, "returned": false, "recs": [{"src": "A", "ts": "10/08 13:56", "shift": false, "fields": [["학기 중 시점", "기억나지 않음"], ["하루 중 시간", "기억나지 않음"], ["알아챈 때", "잃어버린 직후 바로"], ["물건의 의미", "매일 쓰던 필수품"], ["어떻게 잃어버렸나", "어딘가에 두고 왔다"], ["그때 상황", "급하게 이동 중이었다, 대화·휴대폰·과제 등에 집중하고 있었다"], ["찾기 위한 노력", "왔던 길을 되짚어 갔다, 학교 분실물 보관소·행정실에 문의했다"], ["지금 어디에 있을 것 같나", "이미 폐기되었다"]], "clar": 5.0, "msg": "", "hub": "none", "loc": "어디서 잃어버렸는지 모르겠다"}]}, {"no": 14, "cat": "필기구·작업도구", "name": "칼판", "place": "강의실", "outcome": "못 찾음", "note": "", "hub": "jo", "img": "mat", "clar": 0.2, "returned": false, "recs": [{"src": "A", "ts": "10/08 13:58", "shift": false, "fields": [["잃어버린 때", "2023-2024"], ["학기 중 시점", "기말고사 기간"], ["하루 중 시간", "기억나지 않음"], ["알아챈 때", "한참 뒤에야"], ["마지막으로 본 장면", "야작하고있던중"], ["물건의 의미", "크게 의미는 없던 물건"], ["어떻게 잃어버렸나", "도난당한 것 같다"], ["그때 상황", "짐이 많았다"], ["알아챈 순간", "다시 써야할 때"], ["찾기 위한 노력", "아무것도 하지 못했다 / 하지 않았다"], ["지금 어디에 있을 것 같나", "누군가의 손에"], ["상상한 모습", "누군가가 잘 쓰고있기를 바라요~..~"]], "clar": 1.0, "msg": "", "hub": "jo", "loc": "강의실"}]}, {"no": 15, "cat": "필기구·작업도구", "name": "본드", "place": "강의실", "outcome": "못 찾음", "note": "", "hub": "jo", "img": "bond", "clar": 0.2, "returned": false, "recs": [{"src": "A", "ts": "10/08 13:58", "shift": false, "fields": [["잃어버린 때", "2023-2024"], ["학기 중 시점", "기말고사 기간"], ["하루 중 시간", "기억나지 않음"], ["알아챈 때", "한참 뒤에야"], ["마지막으로 본 장면", "야작하고있던중"], ["물건의 의미", "크게 의미는 없던 물건"], ["어떻게 잃어버렸나", "도난당한 것 같다"], ["그때 상황", "짐이 많았다"], ["알아챈 순간", "다시 써야할 때"], ["찾기 위한 노력", "아무것도 하지 못했다 / 하지 않았다"], ["지금 어디에 있을 것 같나", "누군가의 손에"], ["상상한 모습", "누군가가 잘 쓰고있기를 바라요~..~"]], "clar": 1.0, "msg": "", "hub": "jo", "loc": "강의실"}]}, {"no": 16, "cat": "지갑·카드", "name": "선물받은 지갑", "place": "강의실", "outcome": "되찾음(행정실 연락)", "note": "전화번호 연락으로 회수", "hub": "jo", "img": "wallet", "clar": 0.1, "returned": true, "recs": [{"src": "A", "ts": "10/08 14:15", "shift": false, "fields": [["잃어버린 때", "2026년 6월"], ["학기 중 시점", "시험 기간이 아닌 학기 중"], ["하루 중 시간", "오후(14~18시)"], ["알아챈 때", "다음 날 이후"], ["마지막으로 본 장면", "지갑을 조형대별관에서 떨어트린것같았는데 정확히 기억이 안났다"], ["물건의 의미", "선물받았거나 추억이 담긴 물건"], ["얽힌 기억", "선물받은지 3개월된 지갑"], ["어떻게 잃어버렸나", "떨어뜨렸다"], ["그때 상황", "피곤하거나 정신이 없었다"], ["알아챈 순간", "비싼지갑이라 못찾으면 선물해준 사람에게 미안했었다."], ["찾기 위한 노력", "학교 분실물 보관소·행정실에 문의했다, 학교 커뮤니티·SNS에 글을 올렸다"], ["지금 어디에 있을 것 같나", "지갑에 있던 전화번호를 통해 행정조교님이 연락이 와서 찾았다."]], "clar": 4.0, "msg": "", "hub": "jo", "loc": "강의실"}]}, {"no": 17, "cat": "화장품", "name": "화장품", "place": "강의실", "outcome": "엉뚱한 곳에서 발견", "note": "", "hub": "jo", "img": "cosmetics", "clar": 0.1, "returned": true, "recs": [{"src": "A", "ts": "10/08 14:15", "shift": false, "fields": [["잃어버린 때", "2026년 6월"], ["학기 중 시점", "시험 기간이 아닌 학기 중"], ["하루 중 시간", "오후(14~18시)"], ["알아챈 때", "다음 날 이후"], ["마지막으로 본 장면", "지갑을 조형대별관에서 떨어트린것같았는데 정확히 기억이 안났다"], ["물건의 의미", "선물받았거나 추억이 담긴 물건"], ["얽힌 기억", "선물받은지 3개월된 지갑"], ["어떻게 잃어버렸나", "떨어뜨렸다"], ["그때 상황", "피곤하거나 정신이 없었다"], ["알아챈 순간", "비싼지갑이라 못찾으면 선물해준 사람에게 미안했었다."], ["찾기 위한 노력", "학교 분실물 보관소·행정실에 문의했다, 학교 커뮤니티·SNS에 글을 올렸다"], ["지금 어디에 있을 것 같나", "지갑에 있던 전화번호를 통해 행정조교님이 연락이 와서 찾았다."]], "clar": 4.0, "msg": "", "hub": "jo", "loc": "강의실"}]}, {"no": 18, "cat": "필기구·작업도구", "name": "키티 필통(필기구 포함)", "place": "강의실", "outcome": "못 찾음", "note": "가챠로 뽑은 아끼던 물건", "hub": "jo", "img": "kitty", "clar": 0.4, "returned": false, "recs": [{"src": "A", "ts": "10/08 14:18", "shift": false, "fields": [["잃어버린 때", "2024년..?"], ["학기 중 시점", "중간고사 기간"], ["하루 중 시간", "오후(14~18시)"], ["알아챈 때", "그날 안에"], ["마지막으로 본 장면", "빈 강의실에서 공부하다가 필통을 펼치고 강의시간이 되어서 부랴부랴 짐을 챙기고 나갔다."], ["물건의 의미", "아끼던 물건"], ["얽힌 기억", "가챠 3트로 뽑은 키티 필통이라 아끼는 물건이었다"], ["어떻게 잃어버렸나", "어딘가에 두고 왔다"], ["그때 상황", "급하게 이동 중이었다, 대화·휴대폰·과제 등에 집중하고 있었다"], ["알아챈 순간", "기분이 안좋았다 .. 또 내가 바보같다고 생각했고 다시 찾으러 그 강의실에 가봐야겠다고 생각했다."], ["찾기 위한 노력", "왔던 길을 되짚어 갔다"], ["지금 어디에 있을 것 같나", "누군가의 손에"], ["상상한 모습", "누군가가 잘 가지고 있겠죠"], ["물건에게 하고 싶은 말", "잘 가.. ㅠㅠ 사랑했다"], ["황당했던 사라짐", "가방에 키링을 달랑달랑 달고 다녔는데 외출 후 돌아와보니까 키링이 다 사라져있었다"]], "clar": 2.0, "msg": "잘 가.. ㅠㅠ 사랑했다", "hub": "jo", "loc": "강의실"}]}, {"no": 19, "cat": "전자기기", "name": "충전기·보조배터리", "place": "과방", "outcome": "엉뚱한 곳에서 발견", "note": "", "hub": "jo", "img": "charger", "clar": 0.1, "returned": true, "recs": [{"src": "A", "ts": "10/08 14:26", "shift": false, "fields": [["잃어버린 때", "2026/1학기 중반"], ["학기 중 시점", "중간고사 기간"], ["하루 중 시간", "오후(14~18시)"], ["알아챈 때", "몇 시간 안에"], ["마지막으로 본 장면", "과방에서 앉아있던 자리"], ["물건의 의미", "매일 쓰던 필수품"], ["어떻게 잃어버렸나", "도난당한 것 같다"], ["그때 상황", "특별한 이유가 떠오르지 않는다"], ["찾기 위한 노력", "왔던 길을 되짚어 갔다, 주변 사람들에게 물어봤다"], ["지금 어디에 있을 것 같나", "누군가의 손에"]], "clar": 4.0, "msg": "", "hub": "jo", "loc": "과방"}]}, {"no": 20, "cat": "전자기기", "name": "에어팟·이어폰", "place": "학교 앞 정류장·셔틀", "outcome": "못 찾음", "note": "", "hub": "none", "img": "airpods", "clar": 0.8, "returned": false, "recs": [{"src": "A", "ts": "10/08 14:31", "shift": false, "fields": [["잃어버린 때", "2025,04"], ["학기 중 시점", "학기 초"], ["하루 중 시간", "점심시간(12~14시)"], ["알아챈 때", "몇 시간 안에"], ["마지막으로 본 장면", "주머니"], ["물건의 의미", "매일 쓰던 필수품"], ["어떻게 잃어버렸나", "떨어뜨렸다"], ["그때 상황", "피곤하거나 정신이 없었다"], ["알아챈 순간", "Oh no…"], ["찾기 위한 노력", "전화·위치 추적 기능을 썼다"], ["지금 어디에 있을 것 같나", "이미 폐기되었다"], ["상상한 모습", "어딘가에 묻혀있다"], ["물건에게 하고 싶은 말", "잘가"]], "clar": 4.0, "msg": "잘가", "hub": "none", "loc": "학교 앞 정류장·셔틀"}]}, {"no": 21, "cat": "전자기기", "name": "에어팟·이어폰", "place": "강의실", "outcome": "못 찾음", "note": "선물받은 물건", "hub": "jo", "img": "airpods", "clar": 0.2, "returned": false, "recs": [{"src": "A", "ts": "10/08 15:25", "shift": false, "fields": [["잃어버린 때", "에어팟 이번년도 5월"], ["학기 중 시점", "중간고사 기간"], ["하루 중 시간", "오후(14~18시)"], ["알아챈 때", "몇 시간 안에"], ["마지막으로 본 장면", "2층 강의실 책상"], ["물건의 의미", "매일 쓰던 필수품"], ["얽힌 기억", "저한테 소중한 사람이 선물 해줬습니다"], ["어떻게 잃어버렸나", "어딘가에 두고 왔다"], ["그때 상황", "급하게 이동 중이었다, 짐이 많았다"], ["알아챈 순간", "매우 슬펐어요"], ["찾기 위한 노력", "왔던 길을 되짚어 갔다"], ["지금 어디에 있을 것 같나", "누군가의 손에"], ["상상한 모습", "잘 지내? 산지 3일밖에 안됬는데 내가 그렇게 싫었니? 귀 잘 팔게 돌아와"], ["물건에게 하고 싶은 말", "내게 돌아와줘"], ["황당했던 사라짐", "없어요"]], "clar": 1.0, "msg": "내게 돌아와줘", "hub": "jo", "loc": "강의실"}]}, {"no": 22, "cat": "전자기기", "name": "충전기·보조배터리", "place": "강의실", "outcome": "못 찾음", "note": "", "hub": "jo", "img": "cable", "clar": 1.0, "returned": false, "recs": [{"src": "A", "ts": "10/08 15:42", "shift": false, "fields": [["잃어버린 때", "2025년 1학기 기말고사 기간"], ["학기 중 시점", "기말고사 기간"], ["하루 중 시간", "저녁(18~22시)"], ["알아챈 때", "다음 날 이후"], ["마지막으로 본 장면", "충전기를 과실에서 사용 후 내 자리에 두고 집에 갔는데, 이후에 찾을 수 없었다."], ["물건의 의미", "매일 쓰던 필수품"], ["어떻게 잃어버렸나", "도난당한 것 같다"], ["그때 상황", "특별한 이유가 떠오르지 않는다"], ["알아챈 순간", "충전기…또 사야도ㅐ"], ["찾기 위한 노력", "왔던 길을 되짚어 갔다, 주변 사람들에게 물어봤다"], ["지금 어디에 있을 것 같나", "누군가의 손에"], ["황당했던 사라짐", "내 머리에 꽂혀있던 머리핀을 찾으려던 기억…"]], "clar": 5.0, "msg": "", "hub": "jo", "loc": "강의실"}]}, {"no": 23, "cat": "필기구·작업도구", "name": "종이테이프", "place": "조형관 2층 과실 책상", "outcome": "그 자리에서 다시 보임", "note": "과제 도구", "hub": "jo", "img": "tape", "clar": 0.1, "returned": true, "recs": [{"src": "A", "ts": "10/08 15:53", "shift": false, "fields": [["잃어버린 때", "1주일 정도 전"], ["학기 중 시점", "시험 기간이 아닌 학기 중"], ["하루 중 시간", "기억나지 않음"], ["알아챈 때", "지금도 언제 사라졌는지 정확히 모르겠다"], ["마지막으로 본 장면", "조형관 2층 2과실 한 책상"], ["물건의 의미", "과제 제작을 위한 도구"], ["어떻게 잃어버렸나", "어딘가에 두고 왔다"], ["그때 상황", "짐이 많았다, 피곤하거나 정신이 없었다"], ["알아챈 순간", "필요한 상황에 없어서 난처했다"], ["찾기 위한 노력", "왔던 길을 되짚어 갔다, 주변 사람들에게 물어봤다"], ["지금 어디에 있을 것 같나", "학교 어딘가의 틈(책상 밑, 의자 사이, 사물함 뒤 등)"], ["상상한 모습", "먼지에 쌓여있거나 주인 없다고 판단한 누군가의 손에서 사용당하고 있을 것 같다"], ["물건에게 하고 싶은 말", "조금 더 소중하게 다뤄줄게 돌아와주라"]], "clar": 5.0, "msg": "조금 더 소중하게 다뤄줄게 돌아와주라", "hub": "jo", "loc": "과실과 강의실 사이 어딘가"}]}, {"no": 24, "cat": "필기구·작업도구", "name": "커터칼", "place": "조형관 2층 과실 책상", "outcome": "그 자리에서 다시 보임", "note": "과제 도구", "hub": "jo", "img": "cutter", "clar": 0.1, "returned": true, "recs": [{"src": "A", "ts": "10/08 15:53", "shift": false, "fields": [["잃어버린 때", "1주일 정도 전"], ["학기 중 시점", "시험 기간이 아닌 학기 중"], ["하루 중 시간", "기억나지 않음"], ["알아챈 때", "지금도 언제 사라졌는지 정확히 모르겠다"], ["마지막으로 본 장면", "조형관 2층 2과실 한 책상"], ["물건의 의미", "과제 제작을 위한 도구"], ["어떻게 잃어버렸나", "어딘가에 두고 왔다"], ["그때 상황", "짐이 많았다, 피곤하거나 정신이 없었다"], ["알아챈 순간", "필요한 상황에 없어서 난처했다"], ["찾기 위한 노력", "왔던 길을 되짚어 갔다, 주변 사람들에게 물어봤다"], ["지금 어디에 있을 것 같나", "학교 어딘가의 틈(책상 밑, 의자 사이, 사물함 뒤 등)"], ["상상한 모습", "먼지에 쌓여있거나 주인 없다고 판단한 누군가의 손에서 사용당하고 있을 것 같다"], ["물건에게 하고 싶은 말", "조금 더 소중하게 다뤄줄게 돌아와주라"]], "clar": 5.0, "msg": "조금 더 소중하게 다뤄줄게 돌아와주라", "hub": "jo", "loc": "과실과 강의실 사이 어딘가"}]}, {"no": 25, "cat": "키링·액세서리", "name": "열쇠·키링", "place": "강의실", "outcome": "엉뚱한 곳에서 발견", "note": "", "hub": "jo", "img": "keyring", "clar": 0.1, "returned": true, "recs": [{"src": "A", "ts": "10/08 16:53", "shift": false, "fields": [["잃어버린 때", "신고는 안했어요"], ["학기 중 시점", "중간고사 기간"], ["하루 중 시간", "점심시간(12~14시)"], ["알아챈 때", "몇 시간 안에"], ["마지막으로 본 장면", "책상"], ["물건의 의미", "크게 의미는 없던 물건"], ["어떻게 잃어버렸나", "분명 갖고 있었는데 눈앞에서 그냥 사라진 것 같다"], ["그때 상황", "급하게 이동 중이었다"], ["찾기 위한 노력", "왔던 길을 되짚어 갔다"], ["지금 어디에 있을 것 같나", "누군가의 손에"]], "clar": 2.0, "msg": "", "hub": "jo", "loc": "강의실"}]}, {"no": 26, "cat": "전자기기", "name": "에어팟·이어폰", "place": "강의실", "outcome": "엉뚱한 곳에서 발견", "note": "", "hub": "jo", "img": "airpods", "clar": 0.1, "returned": true, "recs": [{"src": "A", "ts": "10/08 17:22", "shift": false, "fields": [["잃어버린 때", "2026년 3월 3주차"], ["학기 중 시점", "학기 초"], ["하루 중 시간", "저녁(18~22시)"], ["알아챈 때", "지금도 언제 사라졌는지 정확히 모르겠다"], ["마지막으로 본 장면", "강의실 책상 위에 올려두고 사물함에 물건들을 넣으러 갔다."], ["물건의 의미", "가끔씩 쓰던 물건"], ["어떻게 잃어버렸나", "어딘가에 두고 왔다"], ["그때 상황", "대화·휴대폰·과제 등에 집중하고 있었다"], ["알아챈 순간", "당연히 있다고 생각한 자리에 없어서 너무 당황스럽고 걱정이 됐다."], ["찾기 위한 노력", "왔던 길을 되짚어 갔다, 주변 사람들에게 물어봤다"], ["지금 어디에 있을 것 같나", "학교 어딘가의 틈(책상 밑, 의자 사이, 사물함 뒤 등)"], ["상상한 모습", "어딘가 어둡고 쓸쓸한 곳에 남아있을 것 같다."], ["물건에게 하고 싶은 말", "미안해"]], "clar": 4.0, "msg": "미안해", "hub": "jo", "loc": "강의실"}]}, {"no": 27, "cat": "전자기기", "name": "애플펜슬", "place": "강의실", "outcome": "엉뚱한 곳에서 발견", "note": "B 애플펜슬과 다른 응답(동명 가능)", "hub": "jo", "img": "pencil_b", "clar": 0.1, "returned": true, "recs": [{"src": "A", "ts": "10/08 17:22", "shift": false, "fields": [["잃어버린 때", "2026년 3월 3주차"], ["학기 중 시점", "학기 초"], ["하루 중 시간", "저녁(18~22시)"], ["알아챈 때", "지금도 언제 사라졌는지 정확히 모르겠다"], ["마지막으로 본 장면", "강의실 책상 위에 올려두고 사물함에 물건들을 넣으러 갔다."], ["물건의 의미", "가끔씩 쓰던 물건"], ["어떻게 잃어버렸나", "어딘가에 두고 왔다"], ["그때 상황", "대화·휴대폰·과제 등에 집중하고 있었다"], ["알아챈 순간", "당연히 있다고 생각한 자리에 없어서 너무 당황스럽고 걱정이 됐다."], ["찾기 위한 노력", "왔던 길을 되짚어 갔다, 주변 사람들에게 물어봤다"], ["지금 어디에 있을 것 같나", "학교 어딘가의 틈(책상 밑, 의자 사이, 사물함 뒤 등)"], ["상상한 모습", "어딘가 어둡고 쓸쓸한 곳에 남아있을 것 같다."], ["물건에게 하고 싶은 말", "미안해"]], "clar": 4.0, "msg": "미안해", "hub": "jo", "loc": "강의실"}]}, {"no": 28, "cat": "책·노트", "name": "책·노트·프린트물", "place": "교내 카페·편의점", "outcome": "못 찾음", "note": "", "hub": "bug", "img": "papers", "clar": 1.0, "returned": false, "recs": [{"src": "A", "ts": "10/08 20:12", "shift": false, "fields": [["학기 중 시점", "기억나지 않음"], ["하루 중 시간", "점심시간(12~14시)"], ["알아챈 때", "그날 안에"], ["물건의 의미", "매일 쓰던 필수품"], ["어떻게 잃어버렸나", "어딘가에 두고 왔다"], ["그때 상황", "급하게 이동 중이었다, 대화·휴대폰·과제 등에 집중하고 있었다, 피곤하거나 정신이 없었다"], ["찾기 위한 노력", "왔던 길을 되짚어 갔다, 주변 사람들에게 물어봤다"], ["지금 어디에 있을 것 같나", "누군가의 손에"]], "clar": 5.0, "msg": "", "hub": "bug", "loc": "교내 카페·편의점"}]}, {"no": 29, "cat": "의류·잡화", "name": "우산", "place": "교내 카페·편의점", "outcome": "못 찾음", "note": "", "hub": "bug", "img": "umbrella_fold", "clar": 1.0, "returned": false, "recs": [{"src": "A", "ts": "10/08 20:12", "shift": false, "fields": [["학기 중 시점", "기억나지 않음"], ["하루 중 시간", "점심시간(12~14시)"], ["알아챈 때", "그날 안에"], ["물건의 의미", "매일 쓰던 필수품"], ["어떻게 잃어버렸나", "어딘가에 두고 왔다"], ["그때 상황", "급하게 이동 중이었다, 대화·휴대폰·과제 등에 집중하고 있었다, 피곤하거나 정신이 없었다"], ["찾기 위한 노력", "왔던 길을 되짚어 갔다, 주변 사람들에게 물어봤다"], ["지금 어디에 있을 것 같나", "누군가의 손에"]], "clar": 5.0, "msg": "", "hub": "bug", "loc": "교내 카페·편의점"}]}, {"no": 30, "cat": "전자기기", "name": "에어팟", "place": "조형관 1층 로비", "outcome": "되찾음(과사무실 연락)", "note": "지퍼 없는 주머니에서 떨어뜨림", "hub": "jo", "img": "airpod_single", "clar": 0.1, "returned": true, "recs": [{"src": "A", "ts": "10/08 23:52", "shift": false, "fields": [["잃어버린 때", "26년 1학기"], ["학기 중 시점", "학기 초"], ["하루 중 시간", "점심시간(12~14시)"], ["알아챈 때", "몇 시간 안에"], ["마지막으로 본 장면", "아니용"], ["물건의 의미", "매일 쓰던 필수품"], ["얽힌 기억", "그냥 에어팟"], ["어떻게 잃어버렸나", "어딘가에 두고 왔다"], ["그때 상황", "지퍼없는 사선 주머니에 넣어둬서 떨궜다"], ["알아챈 순간", "조형관 과사무실에서 전화가 오셔서 알았다. 다행~"], ["찾기 위한 노력", "아무것도 하지 못했다 / 하지 않았다"], ["지금 어디에 있을 것 같나", "찾았다"]], "clar": 5.0, "msg": "", "hub": "jo", "loc": "조형관 1층 로비"}]}, {"no": 31, "cat": "전자기기", "name": "에어팟·이어폰", "place": "장소 불명", "outcome": "우연히 발견", "note": "", "hub": "none", "img": "airpods", "clar": 0.1, "returned": true, "recs": [{"src": "A", "ts": "10/09 00:49", "shift": false, "fields": [["잃어버린 때", "26년 10월"], ["학기 중 시점", "학기 초"], ["하루 중 시간", "기억나지 않음"], ["알아챈 때", "그날 안에"], ["마지막으로 본 장면", "전철에서 노래를 들음"], ["물건의 의미", "매일 쓰던 필수품"], ["어떻게 잃어버렸나", "어딘가에 두고 왔다"], ["그때 상황", "대화·휴대폰·과제 등에 집중하고 있었다, 짐이 많았다, 피곤하거나 정신이 없었다"], ["찾기 위한 노력", "전화·위치 추적 기능을 썼다, 아무것도 하지 못했다 / 하지 않았다"], ["지금 어디에 있을 것 같나", "학교 어딘가의 틈(책상 밑, 의자 사이, 사물함 뒤 등)"], ["물건에게 하고 싶은 말", "제발 침대에서 나왔으면 좋겟다"]], "clar": 2.0, "msg": "제발 침대에서 나왔으면 좋겟다", "hub": "none", "loc": "어디서 잃어버렸는지 모르겠다"}]}, {"no": 32, "cat": "필기구·작업도구", "name": "필기구", "place": "도서관", "outcome": "못 찾음", "note": "동일 응답 복수 항목", "hub": "lib", "img": "pens", "clar": 0.2, "returned": false, "recs": [{"src": "A", "ts": "10/09 01:48", "shift": false, "fields": [["잃어버린 때", "2024/4/?"], ["학기 중 시점", "기말고사 기간"], ["하루 중 시간", "기억나지 않음"], ["알아챈 때", "그날 안에"], ["마지막으로 본 장면", "버스에서는 분명히 물병을 들고 있었다 그리고나서 도서관에서 물 마신 기억은 있다"], ["물건의 의미", "크게 의미는 없던 물건"], ["어떻게 잃어버렸나", "어딘가에 두고 왔다"], ["그때 상황", "짐이 많았다"], ["찾기 위한 노력", "아무것도 하지 못했다 / 하지 않았다"], ["지금 어디에 있을 것 같나", "생각해 본 적 없다"], ["물건에게 하고 싶은 말", "물병아 미안해 주인이 덜렁돼서 꾸정물이 됐겠구나 너의 인생이니까 받아들이고 지구의 거름이 돼라"]], "clar": 1.0, "msg": "물병아 미안해 주인이 덜렁돼서 꾸정물이 됐겠구나 너의 인생이니까 받아들이고 지구의 거름이 돼라", "hub": "lib", "loc": "도서관"}]}, {"no": 33, "cat": "생활용품", "name": "텀블러·물병", "place": "도서관", "outcome": "못 찾음", "note": "", "hub": "lib", "img": "tumbler", "clar": 0.2, "returned": false, "recs": [{"src": "A", "ts": "10/09 01:48", "shift": false, "fields": [["잃어버린 때", "2024/4/?"], ["학기 중 시점", "기말고사 기간"], ["하루 중 시간", "기억나지 않음"], ["알아챈 때", "그날 안에"], ["마지막으로 본 장면", "버스에서는 분명히 물병을 들고 있었다 그리고나서 도서관에서 물 마신 기억은 있다"], ["물건의 의미", "크게 의미는 없던 물건"], ["어떻게 잃어버렸나", "어딘가에 두고 왔다"], ["그때 상황", "짐이 많았다"], ["찾기 위한 노력", "아무것도 하지 못했다 / 하지 않았다"], ["지금 어디에 있을 것 같나", "생각해 본 적 없다"], ["물건에게 하고 싶은 말", "물병아 미안해 주인이 덜렁돼서 꾸정물이 됐겠구나 너의 인생이니까 받아들이고 지구의 거름이 돼라"]], "clar": 1.0, "msg": "물병아 미안해 주인이 덜렁돼서 꾸정물이 됐겠구나 너의 인생이니까 받아들이고 지구의 거름이 돼라", "hub": "lib", "loc": "도서관"}]}, {"no": 34, "cat": "전자기기", "name": "충전기·보조배터리", "place": "2학년 과방", "outcome": "엉뚱한 곳에서 발견", "note": "", "hub": "jo", "img": "charger", "clar": 0.1, "returned": true, "recs": [{"src": "A", "ts": "10/09 07:49", "shift": false, "fields": [["잃어버린 때", "2학년2학기 김지은스튜 종강하고"], ["학기 중 시점", "기말고사 기간"], ["하루 중 시간", "기억나지 않음"], ["알아챈 때", "지금도 언제 사라졌는지 정확히 모르겠다"], ["마지막으로 본 장면", "그냥 내 자리에 있었을텐데"], ["물건의 의미", "비싸고 효율적인물건"], ["얽힌 기억", "충전기가 너무 무거워서 하나 더 사서 학교에 둔거였는데"], ["어떻게 잃어버렸나", "잘 모르겠다"], ["그때 상황", "피곤하거나 정신이 없었다, 사실 집에 들고가는걸 까먹고 개강하고 보니 사라짐"], ["알아챈 순간", "방학중"], ["찾기 위한 노력", "왔던 길을 되짚어 갔다, 학교 분실물 보관소·행정실에 문의했다, 주변 사람들에게 물어봤다"], ["지금 어디에 있을 것 같나", "누군가의 손에"], ["상상한 모습", "다른 사람이 주워서 잘쓰고있을듯 이미 공항 전체를 뒤졌는데 사라짐"], ["물건에게 하고 싶은 말", "너 진짜 최고의 모자야 너없는 삶은 지루해"], ["황당했던 사라짐", "샬엠에이크 공항에 내 모자가 사라짐"]], "clar": 1.0, "msg": "너 진짜 최고의 모자야 너없는 삶은 지루해", "hub": "jo", "loc": "2학년과방"}]}, {"no": 35, "cat": "전자기기", "name": "노트북 충전기", "place": "2학년 과방", "outcome": "엉뚱한 곳에서 발견", "note": "", "hub": "jo", "img": "laptop_charger", "clar": 0.1, "returned": true, "recs": [{"src": "A", "ts": "10/09 07:49", "shift": false, "fields": [["잃어버린 때", "2학년2학기 김지은스튜 종강하고"], ["학기 중 시점", "기말고사 기간"], ["하루 중 시간", "기억나지 않음"], ["알아챈 때", "지금도 언제 사라졌는지 정확히 모르겠다"], ["마지막으로 본 장면", "그냥 내 자리에 있었을텐데"], ["물건의 의미", "비싸고 효율적인물건"], ["얽힌 기억", "충전기가 너무 무거워서 하나 더 사서 학교에 둔거였는데"], ["어떻게 잃어버렸나", "잘 모르겠다"], ["그때 상황", "피곤하거나 정신이 없었다, 사실 집에 들고가는걸 까먹고 개강하고 보니 사라짐"], ["알아챈 순간", "방학중"], ["찾기 위한 노력", "왔던 길을 되짚어 갔다, 학교 분실물 보관소·행정실에 문의했다, 주변 사람들에게 물어봤다"], ["지금 어디에 있을 것 같나", "누군가의 손에"], ["상상한 모습", "다른 사람이 주워서 잘쓰고있을듯 이미 공항 전체를 뒤졌는데 사라짐"], ["물건에게 하고 싶은 말", "너 진짜 최고의 모자야 너없는 삶은 지루해"], ["황당했던 사라짐", "샬엠에이크 공항에 내 모자가 사라짐"]], "clar": 1.0, "msg": "너 진짜 최고의 모자야 너없는 삶은 지루해", "hub": "jo", "loc": "2학년과방"}]}, {"no": 36, "cat": "필기구·작업도구", "name": "색깔펜·추천 펜 세트", "place": "해동도서관 할리스 쪽 책상", "outcome": "그 자리에서 다시 보임", "note": "선물·추천받은 펜 세트", "hub": "none", "img": "markers", "clar": 0.1, "returned": true, "recs": [{"src": "A", "ts": "10/09 12:13", "shift": false, "fields": [["잃어버린 때", "2025년 1학기 중"], ["학기 중 시점", "중간고사 기간"], ["하루 중 시간", "기억나지 않음"], ["알아챈 때", "다음 날 이후"], ["마지막으로 본 장면", "해동도서관 할리스 뱍쪽 책상"], ["물건의 의미", "선물받았거나 추억이 담긴 물건"], ["얽힌 기억", "친구들과 놀러가서 같이 맞춘 색깔펜이 있었고, 공간디자인학과에서 나눠준 필통이었으며, 윤성호 교수님이 추천해주신 펜들이 세트로 들어있었다"], ["어떻게 잃어버렸나", "어딘가에 두고 왔다"], ["그때 상황", "특별한 이유가 떠오르지 않는다"], ["알아챈 순간", "에타에 올렸다"], ["찾기 위한 노력", "학교 커뮤니티·SNS에 글을 올렸다, 주변 사람들에게 물어봤다"], ["지금 어디에 있을 것 같나", "누군가의 손에"], ["상상한 모습", "다른 주인한테 가서 쓰이고 있을 것 같다."], ["물건에게 하고 싶은 말", "돌아와"], ["황당했던 사라짐", "카메라 렌즈 덮개를 놓쳤는데 데구르르 굴러가다가 자기 두께만한 하수구로 퐁 빠졌다:…"]], "clar": 5.0, "msg": "돌아와", "hub": "none", "loc": "어디서 잃어버렸는지 모르겠다"}]}, {"no": 37, "cat": "필기구·작업도구", "name": "공간디자인학과 필통", "place": "해동도서관 할리스 쪽 책상", "outcome": "그 자리에서 다시 보임", "note": "", "hub": "none", "img": "kmu_case", "clar": 0.1, "returned": true, "recs": [{"src": "A", "ts": "10/09 12:13", "shift": false, "fields": [["잃어버린 때", "2025년 1학기 중"], ["학기 중 시점", "중간고사 기간"], ["하루 중 시간", "기억나지 않음"], ["알아챈 때", "다음 날 이후"], ["마지막으로 본 장면", "해동도서관 할리스 뱍쪽 책상"], ["물건의 의미", "선물받았거나 추억이 담긴 물건"], ["얽힌 기억", "친구들과 놀러가서 같이 맞춘 색깔펜이 있었고, 공간디자인학과에서 나눠준 필통이었으며, 윤성호 교수님이 추천해주신 펜들이 세트로 들어있었다"], ["어떻게 잃어버렸나", "어딘가에 두고 왔다"], ["그때 상황", "특별한 이유가 떠오르지 않는다"], ["알아챈 순간", "에타에 올렸다"], ["찾기 위한 노력", "학교 커뮤니티·SNS에 글을 올렸다, 주변 사람들에게 물어봤다"], ["지금 어디에 있을 것 같나", "누군가의 손에"], ["상상한 모습", "다른 주인한테 가서 쓰이고 있을 것 같다."], ["물건에게 하고 싶은 말", "돌아와"], ["황당했던 사라짐", "카메라 렌즈 덮개를 놓쳤는데 데구르르 굴러가다가 자기 두께만한 하수구로 퐁 빠졌다:…"]], "clar": 5.0, "msg": "돌아와", "hub": "none", "loc": "어디서 잃어버렸는지 모르겠다"}]}, {"no": 38, "cat": "필기구·작업도구", "name": "유선 이어폰", "place": "조형관 강의실", "outcome": "못 찾음", "note": "", "hub": "jo", "img": "earpods", "clar": 0.4, "returned": false, "recs": [{"src": "B", "ts": "11/05 11:24", "shift": false, "fields": [["적어 준 물건", "유선 이어폰 , 각종 펜들과 재료들"], ["물건 종류", "필기구·작업도구 (펜, 커터칼, 자 등)"], ["건물", "조형관"], ["건물 안 위치", "강의실"], ["그때의 애착(1–5)", "2"], ["지금 상태", "못 찾았고, 포기했다"], ["지금도 생각나는 정도(1–5)", "2"]], "clar": 2.0, "msg": "", "hub": "jo", "loc": "조형관 / 강의실"}]}, {"no": 39, "cat": "필기구·작업도구", "name": "각종 펜·재료(커터칼·자 등)", "place": "조형관 강의실", "outcome": "못 찾음", "note": "", "hub": "jo", "img": "cutter_b", "clar": 0.4, "returned": false, "recs": [{"src": "B", "ts": "11/05 11:24", "shift": false, "fields": [["적어 준 물건", "유선 이어폰 , 각종 펜들과 재료들"], ["물건 종류", "필기구·작업도구 (펜, 커터칼, 자 등)"], ["건물", "조형관"], ["건물 안 위치", "강의실"], ["그때의 애착(1–5)", "2"], ["지금 상태", "못 찾았고, 포기했다"], ["지금도 생각나는 정도(1–5)", "2"]], "clar": 2.0, "msg": "", "hub": "jo", "loc": "조형관 / 강의실"}]}, {"no": 40, "cat": "필기구·작업도구", "name": "만년필", "place": "조형관 과방", "outcome": "못 찾음", "note": "무료나눔 용으로 테이블에 둠", "hub": "jo", "img": "fountain", "clar": 0.8, "returned": false, "recs": [{"src": "B", "ts": "11/05 11:25", "shift": false, "fields": [["적어 준 물건", "만년필"], ["물건 종류", "필기구·작업도구 (펜, 커터칼, 자 등)"], ["건물", "조형관"], ["건물 안 위치", "과방"], ["자세한 장소", "3학년 과방 내 테이블위"], ["그때의 애착(1–5)", "1"], ["담긴 추억", "동기가 만년필 무료나눔을 준다해서 내 테이블위에 올려두었다 했는데 사라짐 . 본 적도 없음"], ["지금 상태", "못 찾았고, 포기했다"], ["지금도 생각나는 정도(1–5)", "4"]], "clar": 4.0, "msg": "", "hub": "jo", "loc": "조형관 / 과방"}]}, {"no": 41, "cat": "필기구·작업도구", "name": "삼각자", "place": "조형관 2층 과실", "outcome": "못 찾음", "note": "매 학기 재구매", "hub": "lib", "img": "triangle", "clar": 0.2, "returned": false, "recs": [{"src": "B", "ts": "11/05 11:46", "shift": false, "fields": [["적어 준 물건", "삼각자, 트레이싱지"], ["물건 종류", "필기구·작업도구 (펜, 커터칼, 자 등)"], ["건물", "조형관"], ["건물 안 위치", "열람실·작업실"], ["자세한 장소", "2층 공간디자인학과 3과실"], ["그때의 애착(1–5)", "4"], ["담긴 추억", "과제 할 때, 스케치할 때, 도면그릴때 열심히 썼는데 매 학기마다 잃어버려서 매 학기마다 새로 사고있다"], ["지금 상태", "못 찾았고, 포기했다"], ["지금도 생각나는 정도(1–5)", "1"]], "clar": 1.0, "msg": "", "hub": "lib", "loc": "조형관 / 열람실·작업실"}]}, {"no": 42, "cat": "필기구·작업도구", "name": "트레이싱지", "place": "조형관 2층 과실", "outcome": "못 찾음", "note": "", "hub": "lib", "img": "tracing", "clar": 0.2, "returned": false, "recs": [{"src": "B", "ts": "11/05 11:46", "shift": false, "fields": [["적어 준 물건", "삼각자, 트레이싱지"], ["물건 종류", "필기구·작업도구 (펜, 커터칼, 자 등)"], ["건물", "조형관"], ["건물 안 위치", "열람실·작업실"], ["자세한 장소", "2층 공간디자인학과 3과실"], ["그때의 애착(1–5)", "4"], ["담긴 추억", "과제 할 때, 스케치할 때, 도면그릴때 열심히 썼는데 매 학기마다 잃어버려서 매 학기마다 새로 사고있다"], ["지금 상태", "못 찾았고, 포기했다"], ["지금도 생각나는 정도(1–5)", "1"]], "clar": 1.0, "msg": "", "hub": "lib", "loc": "조형관 / 열람실·작업실"}]}, {"no": 43, "cat": "필기구·작업도구", "name": "가위", "place": "조형관 과실", "outcome": "못 찾음", "note": "", "hub": "lib", "img": null, "clar": 0.4, "returned": false, "recs": [{"src": "B", "ts": "11/05 12:57", "shift": false, "fields": [["적어 준 물건", "가위"], ["물건 종류", "필기구·작업도구 (펜, 커터칼, 자 등)"], ["건물", "조형관"], ["건물 안 위치", "열람실·작업실"], ["자세한 장소", "과실"], ["그때의 애착(1–5)", "3"], ["지금 상태", "못 찾았고, 포기했다"], ["지금도 생각나는 정도(1–5)", "2"]], "clar": 2.0, "msg": "", "hub": "lib", "loc": "조형관 / 열람실·작업실"}]}, {"no": 44, "cat": "화장품", "name": "틴트", "place": "조형관 2층 과실 앞", "outcome": "못 찾음", "note": "개인 물품", "hub": "jo", "img": "tint", "clar": 0.2, "returned": false, "recs": [{"src": "B", "ts": "11/05 13:17", "shift": false, "fields": [["적어 준 물건", "틴트, 학교 축제물품(잔디가루, 목공풀, 아 뭐더라...), 빗자루세트, mdf무더기-토포 만들려고 샀는데 통째로 잃어버림요"], ["물건 종류", "제 개인 물품, 학생회 행사 물품-학교 돈.. ㅜㅜㅜㅜ"], ["건물", "조형관"], ["건물 안 위치", "2층 전체 어딘가.. 랑 과실 앞"], ["자세한 장소", "과실 앞 택배박스 모아두는 곳"], ["그때의 애착(1–5)", "2"], ["담긴 추억", "특별한 추억은 없고, 학교 돈으로 샀기에, 횡령으로 안걸리려면 인증샷 찍어서 감사보고서에 올려야했서여... 근데 인증샷도 못찍은 상태로 잃어버렸던거라, 학생회비 감사에 제출할 때 쓸 이미지가 없어서 상당히 곤란해서 무조건 찾아야하는 상황이었습니다."], ["지금 상태", "되찾았다"], ["다시 찾은 경위", "졸전한다고 짐을 다 옮기고 버리고 하는 상황에서 분실됐던거였는데, 후에 짐들 다 되돌리는 과정에서 사물함 사이에 낑긴 저의 택배를 발견했어요. --다른 제 개인 물품(틴트같은..)은 못찾았습니다."], ["지금도 생각나는 정도(1–5)", "1"]], "clar": 1.0, "msg": "", "hub": "jo", "loc": "조형관 / 2층 전체 어딘가.. 랑 과실 앞"}]}, {"no": 45, "cat": "학생회 물품", "name": "학교 축제물품(잔디가루·목공풀 등)", "place": "조형관 2층 과실 앞", "outcome": "확인 필요", "note": "학생회 행사 물품", "hub": "jo", "img": "grass_pva", "clar": 0.2, "returned": false, "recs": [{"src": "B", "ts": "11/05 13:17", "shift": false, "fields": [["적어 준 물건", "틴트, 학교 축제물품(잔디가루, 목공풀, 아 뭐더라...), 빗자루세트, mdf무더기-토포 만들려고 샀는데 통째로 잃어버림요"], ["물건 종류", "제 개인 물품, 학생회 행사 물품-학교 돈.. ㅜㅜㅜㅜ"], ["건물", "조형관"], ["건물 안 위치", "2층 전체 어딘가.. 랑 과실 앞"], ["자세한 장소", "과실 앞 택배박스 모아두는 곳"], ["그때의 애착(1–5)", "2"], ["담긴 추억", "특별한 추억은 없고, 학교 돈으로 샀기에, 횡령으로 안걸리려면 인증샷 찍어서 감사보고서에 올려야했서여... 근데 인증샷도 못찍은 상태로 잃어버렸던거라, 학생회비 감사에 제출할 때 쓸 이미지가 없어서 상당히 곤란해서 무조건 찾아야하는 상황이었습니다."], ["지금 상태", "되찾았다"], ["다시 찾은 경위", "졸전한다고 짐을 다 옮기고 버리고 하는 상황에서 분실됐던거였는데, 후에 짐들 다 되돌리는 과정에서 사물함 사이에 낑긴 저의 택배를 발견했어요. --다른 제 개인 물품(틴트같은..)은 못찾았습니다."], ["지금도 생각나는 정도(1–5)", "1"]], "clar": 1.0, "msg": "", "hub": "jo", "loc": "조형관 / 2층 전체 어딘가.. 랑 과실 앞"}]}, {"no": 46, "cat": "학생회 물품", "name": "MDF 무더기(택배)", "place": "조형관 2층 과실 앞", "outcome": "되찾음", "note": "사물함 사이에서 택배 발견", "hub": "jo", "img": "mdf", "clar": 0.1, "returned": true, "recs": [{"src": "B", "ts": "11/05 13:17", "shift": false, "fields": [["적어 준 물건", "틴트, 학교 축제물품(잔디가루, 목공풀, 아 뭐더라...), 빗자루세트, mdf무더기-토포 만들려고 샀는데 통째로 잃어버림요"], ["물건 종류", "제 개인 물품, 학생회 행사 물품-학교 돈.. ㅜㅜㅜㅜ"], ["건물", "조형관"], ["건물 안 위치", "2층 전체 어딘가.. 랑 과실 앞"], ["자세한 장소", "과실 앞 택배박스 모아두는 곳"], ["그때의 애착(1–5)", "2"], ["담긴 추억", "특별한 추억은 없고, 학교 돈으로 샀기에, 횡령으로 안걸리려면 인증샷 찍어서 감사보고서에 올려야했서여... 근데 인증샷도 못찍은 상태로 잃어버렸던거라, 학생회비 감사에 제출할 때 쓸 이미지가 없어서 상당히 곤란해서 무조건 찾아야하는 상황이었습니다."], ["지금 상태", "되찾았다"], ["다시 찾은 경위", "졸전한다고 짐을 다 옮기고 버리고 하는 상황에서 분실됐던거였는데, 후에 짐들 다 되돌리는 과정에서 사물함 사이에 낑긴 저의 택배를 발견했어요. --다른 제 개인 물품(틴트같은..)은 못찾았습니다."], ["지금도 생각나는 정도(1–5)", "1"]], "clar": 1.0, "msg": "", "hub": "jo", "loc": "조형관 / 2층 전체 어딘가.. 랑 과실 앞"}]}, {"no": 47, "cat": "학생회 물품", "name": "빗자루 세트", "place": "조형관 2층 과실 앞", "outcome": "확인 필요", "note": "학생회 행사 물품", "hub": "jo", "img": null, "clar": 0.2, "returned": false, "recs": [{"src": "B", "ts": "11/05 13:17", "shift": false, "fields": [["적어 준 물건", "틴트, 학교 축제물품(잔디가루, 목공풀, 아 뭐더라...), 빗자루세트, mdf무더기-토포 만들려고 샀는데 통째로 잃어버림요"], ["물건 종류", "제 개인 물품, 학생회 행사 물품-학교 돈.. ㅜㅜㅜㅜ"], ["건물", "조형관"], ["건물 안 위치", "2층 전체 어딘가.. 랑 과실 앞"], ["자세한 장소", "과실 앞 택배박스 모아두는 곳"], ["그때의 애착(1–5)", "2"], ["담긴 추억", "특별한 추억은 없고, 학교 돈으로 샀기에, 횡령으로 안걸리려면 인증샷 찍어서 감사보고서에 올려야했서여... 근데 인증샷도 못찍은 상태로 잃어버렸던거라, 학생회비 감사에 제출할 때 쓸 이미지가 없어서 상당히 곤란해서 무조건 찾아야하는 상황이었습니다."], ["지금 상태", "되찾았다"], ["다시 찾은 경위", "졸전한다고 짐을 다 옮기고 버리고 하는 상황에서 분실됐던거였는데, 후에 짐들 다 되돌리는 과정에서 사물함 사이에 낑긴 저의 택배를 발견했어요. --다른 제 개인 물품(틴트같은..)은 못찾았습니다."], ["지금도 생각나는 정도(1–5)", "1"]], "clar": 1.0, "msg": "", "hub": "jo", "loc": "조형관 / 2층 전체 어딘가.. 랑 과실 앞"}]}, {"no": 48, "cat": "의류·잡화", "name": "과잠", "place": "조형관 과방", "outcome": "못 찾음", "note": "과방에서 굴러다니던 것을 발견했으나 다시 두었다는 메모", "hub": "jo", "img": "jacket", "clar": 0.2, "returned": false, "recs": [{"src": "B", "ts": "11/05 14:17", "shift": false, "fields": [["적어 준 물건", "과잠"], ["물건 종류", "의류·우산·잡화"], ["건물", "조형관"], ["건물 안 위치", "강의실"], ["자세한 장소", "과방"], ["그때의 애착(1–5)", "1"], ["담긴 추억", "너무 밤티여서 사실 입고 다니지 않았다. 굴러다니는 걸 발견했는데 그냥 다시 굴러다니게 두었다. 그래도 시험기간에 많은 동기들의 이불이 되어주었다."], ["지금 상태", "못 찾았고, 포기했다"], ["지금도 생각나는 정도(1–5)", "1"]], "clar": 1.0, "msg": "", "hub": "jo", "loc": "조형관 / 강의실"}]}, {"no": 49, "cat": "필기구·작업도구", "name": "순간접착제", "place": "조형관 열람실·작업실", "outcome": "못 찾음", "note": "", "hub": "lib", "img": "superglue", "clar": 0.2, "returned": false, "recs": [{"src": "B", "ts": "11/10 10:42", "shift": false, "fields": [["적어 준 물건", "순간접착제"], ["물건 종류", "필기구·작업도구 (펜, 커터칼, 자 등)"], ["건물", "조형관"], ["건물 안 위치", "열람실·작업실"], ["자세한 장소", "2학년 과방"], ["그때의 애착(1–5)", "3"], ["담긴 추억", "특별한 추억은 없지만 모형 만들 때 없어선 안될 순간접착제가 누구한테 빌려주기만 하면 자꾸 사라지니 조금 서러웠다. 내꺼 외에도 시험기간만 되면 처참한 상태로 발견된 순접이들이 종종 있다…"], ["지금 상태", "못 찾았고, 포기했다"], ["지금도 생각나는 정도(1–5)", "1"]], "clar": 1.0, "msg": "", "hub": "lib", "loc": "조형관 / 열람실·작업실"}]}, {"no": 50, "cat": "전자기기", "name": "이어폰", "place": "장소 불명", "outcome": "못 찾음", "note": "", "hub": "none", "img": "aux", "clar": 0.8, "returned": false, "recs": [{"src": "B", "ts": "11/10 21:40", "shift": false, "fields": [["적어 준 물건", "이어폰"], ["물건 종류", "전자기기 (이어폰, 충전기, 보조배터리 등)"], ["건물", "기억나지 않는다"], ["건물 안 위치", "기억나지 않는다"], ["그때의 애착(1–5)", "3"], ["지금 상태", "못 찾았고, 포기했다"], ["지금도 생각나는 정도(1–5)", "4"]], "clar": 4.0, "msg": "", "hub": "none", "loc": "기억나지 않는다 / 기억나지 않는다"}]}, {"no": 51, "cat": "지갑·카드", "name": "지갑(선물)", "place": "북악관 라운지", "outcome": "되찾음", "note": "선물받은 지갑", "hub": "lib", "img": "wallet", "clar": 0.1, "returned": true, "recs": [{"src": "B", "ts": "11/10 21:42", "shift": false, "fields": [["적어 준 물건", "지갑"], ["물건 종류", "지갑·카드·학생증"], ["건물", "북악관"], ["건물 안 위치", "라운지·소파"], ["자세한 장소", "북악관 책상 위"], ["그때의 애착(1–5)", "5"], ["담긴 추억", "엄마 생일 선물 이었어요ㅠ"], ["지금 상태", "되찾았다"], ["다시 찾은 경위", "잃어버린거 인지 후 찾으러 감"], ["지금도 생각나는 정도(1–5)", "4"]], "clar": 4.0, "msg": "", "hub": "lib", "loc": "북악관 / 라운지·소파"}]}], "points": {"jo": 19, "lib": 6, "none": 7, "bug": 1}};
+const HUBS = {
+  jo:  {name:'조형관',  color:'#FDD7B5'},
+  lib: {name:'도서관',  color:'#C0E7F8'},
+  bug: {name:'북악관',  color:'#C5CDFF'},
+  none:{name:'허브 외', color:'#E3E6EC'}
+};
+const HUB_ORDER = ['jo','lib','bug','none'];
+const ITEMS = DATA.items;
+const RM = matchMedia('(prefers-reduced-motion: reduce)').matches;
+const lvOf = p => p<=5?1:p<=15?2:p<=30?3:p<=50?4:5;
+
+/* ---------- grain ---------- */
+(function(){const c=document.createElement('canvas');c.width=c.height=180;const x=c.getContext('2d');const d=x.createImageData(180,180);
+for(let i=0;i<d.data.length;i+=4){const v=Math.random()*255|0;d.data[i]=d.data[i+1]=d.data[i+2]=v;d.data[i+3]=255}x.putImageData(d,0,0);
+document.getElementById('grain').style.backgroundImage='url('+c.toDataURL()+')';})();
+
+/* ---------- UI: chips, legend ---------- */
+const counts = {}; ITEMS.forEach(it=>counts[it.hub]=(counts[it.hub]||0)+1);
+let hubFilter='all', query='';
+const chips=document.getElementById('chips');
+function chip(key,label,color){const b=document.createElement('button');b.className='chip';b.dataset.k=key;b.setAttribute('aria-pressed',key==='all');
+  b.innerHTML=(color?'<span class="sw" style="background:'+color+'"></span>':'')+label+' <span style="opacity:.6;font-family:var(--f-mono);font-size:11px">'+(key==='all'?ITEMS.length:counts[key]||0)+'</span>';
+  b.onclick=()=>{hubFilter=key;chips.querySelectorAll('.chip').forEach(c=>c.setAttribute('aria-pressed',c.dataset.k===key));applyFilter();
+    if(key!=='all') focusHub(key);};chips.appendChild(b);}
+chip('all','전체');HUB_ORDER.forEach(k=>chip(k,HUBS[k].name,HUBS[k].color));
+const lg=document.getElementById('legend');
+HUB_ORDER.forEach(k=>{const p=DATA.points[k]||0;const li=document.createElement('li');
+  li.innerHTML='<span class="sw" style="background:'+HUBS[k].color+'"></span><span>'+HUBS[k].name+' <span class="lv">· '+(counts[k]||0)+'개</span></span><span class="lv">'+(k==='none'?'집계 제외':'Lv.'+lvOf(p)+' · '+p+'점')+'</span>';lg.appendChild(li);});
+if(matchMedia('(pointer:coarse)').matches){document.querySelector('.touchk').hidden=false;}
+
+/* ---------- three setup ---------- */
+const stage=document.getElementById('stage');
+const renderer=new THREE.WebGLRenderer({antialias:true,alpha:true});
+renderer.setPixelRatio(Math.min(devicePixelRatio,2));
+renderer.setClearColor(0x000000,0);
+stage.appendChild(renderer.domElement);
+renderer.domElement.tabIndex=0;
+const scene=new THREE.Scene();
+scene.fog=new THREE.Fog(0xffffff,110,420);
+const camera=new THREE.PerspectiveCamera(55,1,0.1,1200);
+camera.rotation.order='YXZ';
+const grid=new THREE.GridHelper(900,150,0xA9C9E6,0xCFE0F0);grid.position.y=-26;grid.material.transparent=true;grid.material.opacity=.55;scene.add(grid);
+
+function rng(seed){return function(){seed|=0;seed=seed+0x6D2B79F5|0;let t=Math.imul(seed^seed>>>15,1|seed);t=t+Math.imul(t^t>>>7,61|t)^t;return((t^t>>>14)>>>0)/4294967296}}
+const H3={jo:{c:[0,1,-46],r:[52,16,36]},lib:{c:[-96,6,-130],r:[24,11,20]},bug:{c:[92,-2,-124],r:[11,7,9]},none:{c:[0,20,-200],r:[42,12,24]}};
+
+/* 2D layout: hub blocks side by side on the plane z = Z2 */
+const Z2=-110, CW=8.6, CH=11;
+const COLS={jo:6,lib:3,bug:2,none:4};
+const pos2={}, hub2={};
+(function(){let x=0;const blocks=[];HUB_ORDER.forEach(k=>{const list=ITEMS.filter(i=>i.hub===k);const w=COLS[k]*CW;blocks.push({k,list,x,w});x+=w+16;});
+  const total=x-16;blocks.forEach(b=>{const x0=b.x-total/2;b.list.forEach((it,i)=>{const c=i%COLS[b.k],r=Math.floor(i/COLS[b.k]);pos2[it.no]=new THREE.Vector3(x0+c*CW+CW/2,26-r*CH-CH,Z2);});
+  hub2[b.k]=new THREE.Vector3(x0+b.w/2,26,Z2)});
+  window.W2=total;})();
+
+/* ---------- item textures ---------- */
+const TW=512,TH=660;
+const fontsReady=Promise.race([Promise.all([document.fonts.load('600 30px "IBM Plex Sans KR"'),document.fonts.load('500 22px "IBM Plex Mono"')]),new Promise(r=>setTimeout(r,1800))]);
+function rr(x,ctx,a,b,w,h,r){ctx.beginPath();ctx.moveTo(a+r,b);ctx.arcTo(a+w,b,a+w,b+h,r);ctx.arcTo(a+w,b+h,a,b+h,r);ctx.arcTo(a,b+h,a,b,r);ctx.arcTo(a,b,a+w,b,r);ctx.closePath();}
+function wrap(ctx,text,maxW){const words=[...text];let lines=[''];for(const ch of words){const t=lines[lines.length-1]+ch;if(ctx.measureText(t).width>maxW&&lines[lines.length-1]){if(lines.length===2){lines[1]=lines[1].slice(0,-1)+'…';break;}lines.push(ch.trimStart());}else lines[lines.length-1]=t;}return lines;}
+function drawItem(it,img,hi){
+  const k=hi?2:1,key=hi?'hiCanvas':'canvas';
+  const c=it[key]||(it[key]=document.createElement('canvas'));c.width=TW*k;c.height=TH*k;const g=c.getContext('2d');g.setTransform(k,0,0,k,0,0);g.clearRect(0,0,TW,TH);g.imageSmoothingQuality='high';
+  const col=HUBS[it.hub].color;
+  // lightbox plate
+  g.save();g.shadowColor=col;g.shadowBlur=38;rr(0,g,40,34,432,470,18);g.fillStyle=col;g.fill();g.restore();
+  const rad=g.createRadialGradient(256,250,20,256,270,300);rad.addColorStop(0,'rgba(255,255,255,.92)');rad.addColorStop(.55,'rgba(255,255,255,.35)');rad.addColorStop(1,'rgba(255,255,255,0)');
+  rr(0,g,40,34,432,470,18);g.fillStyle=rad;g.fill();
+  g.lineWidth=2;g.strokeStyle='rgba(255,255,255,.85)';rr(0,g,48,42,416,454,13);g.stroke();
+  // tick marks like a light table
+  g.strokeStyle='rgba(27,33,48,.28)';g.lineWidth=1.5;[[60,54],[452,54],[60,484],[452,484]].forEach(([x,y])=>{g.beginPath();g.moveTo(x-8,y);g.lineTo(x+8,y);g.moveTo(x,y-8);g.lineTo(x,y+8);g.stroke();});
+  g.fillStyle='rgba(27,33,48,.55)';g.font='500 17px "IBM Plex Mono", monospace';g.fillText('No.'+String(it.no).padStart(3,'0'),66,90);
+  g.textAlign='right';g.font='500 17px "IBM Plex Sans KR", sans-serif';g.fillText(HUBS[it.hub].name,446,90);g.textAlign='left';
+  // object
+  const cl=it.clar;
+  if(img){const box=330;const s=Math.min(box/img.width,box/img.height);const w=img.width*s,h=img.height*s;const x=256-w/2,y=282-h/2;
+    g.save();g.globalAlpha=.18*(.3+cl);g.fillStyle='#1B2130';g.filter='blur(14px)';g.beginPath();g.ellipse(256,y+h+8,w*.38,12,0,0,Math.PI*2);g.fill();g.restore();
+    g.save();if(!hi){g.globalAlpha=it.returned?.16:(.38+.62*cl);g.filter='blur('+(it.returned?5:(1-cl)*6).toFixed(1)+'px)';}g.drawImage(img,x,y,w,h);g.restore();
+  } else {g.save();g.setLineDash([8,8]);g.strokeStyle='rgba(27,33,48,.4)';g.lineWidth=2;rr(0,g,156,182,200,200,14);g.stroke();g.restore();
+    g.fillStyle='rgba(27,33,48,.55)';g.font='500 18px "IBM Plex Mono", monospace';g.textAlign='center';g.fillText('IMAGE PENDING',256,288);g.textAlign='left';}
+  if(it.returned){g.save();g.setLineDash([10,9]);g.strokeStyle='rgba(27,33,48,.45)';g.lineWidth=2;rr(0,g,40,34,432,470,18);g.stroke();g.restore();
+    g.fillStyle='rgba(27,33,48,.6)';g.font='500 16px "IBM Plex Mono", monospace';g.textAlign='center';g.fillText('RETURNED TO REALITY',256,478);g.textAlign='left';}
+  // label
+  g.fillStyle='#1B2130';g.font='600 30px "IBM Plex Sans KR", sans-serif';
+  const lines=wrap(g,it.name,432);lines.forEach((l,i)=>g.fillText(l,40,552+i*36));
+  g.fillStyle='#667086';g.font='400 19px "IBM Plex Mono", monospace';g.fillText(it.outcome.slice(0,26),40,552+lines.length*36+2);
+  if(hi){if(it.hiTex)it.hiTex.needsUpdate=true;}else if(it.tex) it.tex.needsUpdate=true;
+}
+let sharpIt=null;
+function setSharp(it){
+  if(sharpIt&&sharpIt!==it){const p=sharpIt;p.mesh.material.map=p.tex;p.mesh.material.needsUpdate=true;if(p.hiTex){p.hiTex.dispose();p.hiTex=null;}p.hiCanvas=null;}
+  if(!it||sharpIt===it){sharpIt=it;return;}
+  sharpIt=it;drawItem(it,it.image||null,true);
+  it.hiTex=new THREE.CanvasTexture(it.hiCanvas);it.hiTex.encoding=THREE.sRGBEncoding;it.hiTex.anisotropy=renderer.capabilities.getMaxAnisotropy();
+  it.mesh.material.map=it.hiTex;it.mesh.material.needsUpdate=true;}
+
+/* ---------- meshes ---------- */
+const geo=new THREE.PlaneGeometry(6.2,6.2*TH/TW);
+const meshes=[];
+ITEMS.forEach(it=>{
+  const h=H3[it.hub],R=rng(it.no*7919+HUB_ORDER.indexOf(it.hub)*131);
+  let v;do{v=[R()*2-1,R()*2-1,R()*2-1]}while(v[0]*v[0]+v[1]*v[1]+v[2]*v[2]>1);
+  it.p3=new THREE.Vector3(h.c[0]+v[0]*h.r[0],h.c[1]+v[1]*h.r[1],h.c[2]+v[2]*h.r[2]);
+  it.p2=pos2[it.no];it.phase=R()*6.28;
+  drawItem(it,null);
+  it.tex=new THREE.CanvasTexture(it.canvas);it.tex.anisotropy=4;it.tex.encoding=THREE.sRGBEncoding;
+  const m=new THREE.Mesh(geo,new THREE.MeshBasicMaterial({map:it.tex,transparent:true,depthWrite:false,opacity:1}));
+  m.position.copy(it.p3);m.userData.it=it;it.mesh=m;scene.add(m);meshes.push(m);
+});
+renderer.outputEncoding=THREE.sRGBEncoding;
+fontsReady.then(()=>{ITEMS.forEach(it=>{drawItem(it,null);
+  if(!it.img)return;const im=new Image();im.onload=()=>{it.image=im;drawItem(it,im);if(sharpIt===it)drawItem(it,im,true);};im.src='img/'+it.img+'.png';});});
+
+/* hub nodes */
+const hubNodes={};
+HUB_ORDER.forEach(k=>{const c=document.createElement('canvas');c.width=640;c.height=150;const g=c.getContext('2d');
+  fontsReady.then(()=>{g.clearRect(0,0,640,150);g.fillStyle=HUBS[k].color;g.strokeStyle='#1B2130';g.lineWidth=3;g.beginPath();g.arc(48,62,26,0,7);g.fill();g.stroke();
+    g.fillStyle='#1B2130';g.font='600 46px "IBM Plex Sans KR", sans-serif';g.fillText(HUBS[k].name+(k==='none'?'':' 허브'),92,78);
+    g.font='500 24px "IBM Plex Mono", monospace';g.fillStyle='#667086';const p=DATA.points[k]||0;
+    g.fillText(k==='none'?'건물 특정 불가 · 집계 제외 · '+counts[k]+' objects':'LV.'+lvOf(p)+' · '+p+' pts · '+counts[k]+' objects',92,118);t.needsUpdate=true;});
+  const t=new THREE.CanvasTexture(c);t.encoding=THREE.sRGBEncoding;
+  const s=new THREE.Sprite(new THREE.SpriteMaterial({map:t,transparent:true,depthWrite:false}));s.scale.set(17,4,1);
+  const h=H3[k];s.userData={p3:new THREE.Vector3(h.c[0],h.c[1]+h.r[1]+9,h.c[2]),p2:hub2[k].clone().add(new THREE.Vector3(0,3.2,0)),center3:new THREE.Vector3(...h.c)};
+  s.position.copy(s.userData.p3);scene.add(s);hubNodes[k]=s;});
+
+/* network lines: 2 nearest in hub + hub node */
+const pairs=[];
+ITEMS.forEach(a=>{const near=ITEMS.filter(b=>b!==a&&b.hub===a.hub).map(b=>[b,a.p3.distanceTo(b.p3)]).sort((x,y)=>x[1]-y[1]).slice(0,2);
+  near.forEach(([b])=>{if(!pairs.some(p=>p[0]===b&&p[1]===a))pairs.push([a,b])});pairs.push([a,null]);});
+const lineGeo=new THREE.BufferGeometry();const lp=new Float32Array(pairs.length*6);lineGeo.setAttribute('position',new THREE.BufferAttribute(lp,3));
+const lineMat=new THREE.LineBasicMaterial({color:0x8E9AB2,transparent:true,opacity:.24});
+const lines=new THREE.LineSegments(lineGeo,lineMat);scene.add(lines);
+
+/* ---------- camera / modes ---------- */
+let mode='3d', tMode=0, tModeTarget=0;          // 0 = 3D field, 1 = 2D canvas
+const cam={pos:new THREE.Vector3(0,3,24),yaw:0,pitch:-0.02};
+const cam3Saved={pos:cam.pos.clone(),yaw:0,pitch:-0.02};
+const vel=new THREE.Vector3();
+let fly=null;                                     // {from,to,yaw0,yaw1,p0,p1,t,dur}
+function dist2D(){const a=renderer.domElement.clientWidth/renderer.domElement.clientHeight;const half=Math.tan(THREE.MathUtils.degToRad(camera.fov/2));
+  const byW=(W2/2+8)/(half*a), byH=(70/2)/half;return Math.max(byW,byH);}
+function center2D(){return new THREE.Vector3(0,-6,Z2+dist2D())}
+function startFly(toPos,toYaw,toPitch,dur){fly={from:cam.pos.clone(),to:toPos.clone(),yaw0:cam.yaw,yaw1:toYaw,p0:cam.pitch,p1:toPitch,t:0,dur:RM?0.01:dur};}
+function setMode(m){if(m===mode)return;
+  if(m==='2d'){cam3Saved.pos.copy(cam.pos);cam3Saved.yaw=cam.yaw;cam3Saved.pitch=cam.pitch;tModeTarget=1;startFly(center2D(),0,0,1.3);}
+  else{tModeTarget=0;startFly(cam3Saved.pos,cam3Saved.yaw,cam3Saved.pitch,1.3);}
+  mode=m;document.getElementById('m3').setAttribute('aria-pressed',m==='3d');document.getElementById('m2').setAttribute('aria-pressed',m==='2d');
+  document.querySelector('.keys').innerHTML=m==='3d'?'<b>드래그</b> 둘러보기 · <b>휠 / W S</b> 걸어 들어가기 · <b>A D</b> 옆으로 · <b>Q E</b> 아래·위 · <b>물건 클릭</b> 기록 열기':'<b>드래그</b> 캔버스 이동 · <b>휠</b> 확대·축소 · <b>물건 클릭</b> 기록 열기';}
+document.getElementById('m3').onclick=()=>setMode('3d');
+document.getElementById('m2').onclick=()=>setMode('2d');
+function lookAtYawPitch(from,to){const d=to.clone().sub(from);return[Math.atan2(-d.x,-d.z),Math.atan2(d.y,Math.hypot(d.x,d.z))];}
+function focusItem(it){
+  if(mode==='3d'){const p=it.mesh.position.clone();const dir=cam.pos.clone().sub(p);dir.y=0;if(dir.length()<1)dir.set(0,0,1);dir.normalize();
+    const to=p.clone().add(dir.multiplyScalar(15)).add(new THREE.Vector3(0,-.4,0));const [y,pi]=lookAtYawPitch(to,p);startFly(to,y,pi,1.1);}
+  else{const p=it.p2;startFly(new THREE.Vector3(p.x+(innerWidth>720?4:0),p.y-(innerWidth>720?0:5),Z2+26),0,0,.9);}}
+function focusHub(k){
+  if(mode==='3d'){const h=H3[k];const c=new THREE.Vector3(...h.c);const to=c.clone().add(new THREE.Vector3(0,4,h.r[2]+34));const [y,pi]=lookAtYawPitch(to,c);startFly(to,y,pi,1.4);}
+  else{const p=hub2[k];const rows=Math.ceil(counts[k]/COLS[k]);startFly(new THREE.Vector3(p.x,p.y-rows*CH/2,Z2+Math.max(40,rows*CH*1.6+COLS[k]*CW*.9)),0,0,1);}}
+
+/* ---------- filter ---------- */
+const countEl=document.getElementById('count');
+function matches(it){return(hubFilter==='all'||it.hub===hubFilter)&&(!query||it.name.toLowerCase().includes(query)||it.cat.includes(query)||it.place.includes(query));}
+function applyFilter(){let n=0;ITEMS.forEach(it=>{it.on=matches(it);if(it.on)n++;});countEl.textContent=n+' / '+ITEMS.length+' objects';
+  lineMat.opacity=(hubFilter==='all'&&!query)?.24:.1;}
+document.getElementById('q').addEventListener('input',e=>{query=e.target.value.trim().toLowerCase();applyFilter();});
+applyFilter();
+
+/* ---------- record sheet ---------- */
+const sheet=document.getElementById('sheet'),body=document.getElementById('sh-body');
+let current=null;
+function esc(s){return String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]))}
+function openItem(it,fly=true){current=it;setSharp(it);
+  document.getElementById('sh-no').textContent='No.'+String(it.no).padStart(3,'0')+' / '+ITEMS.length;
+  const hub=HUBS[it.hub];const pct=Math.round(it.clar*100);
+  const msg=it.recs.map(r=>r.msg).find(Boolean);
+  let h='<div class="plate" style="background:'+hub.color+'">'+(it.img?'<img src="img/'+it.img+'.png" alt="'+esc(it.name)+' 이미지">':'<span class="noimg">이미지 준비 중</span>')+(it.img?'<span class="ai">AI 생성 이미지</span>':'')+'</div>';
+  h+='<div><h1>'+esc(it.name)+'</h1><div class="meta">'+hub.name+(it.hub==='none'?'':' 허브')+' · '+esc(it.place)+'<br>'+esc(it.cat)+'</div></div>';
+  h+='<div class="state"><span class="badge'+(it.returned?' ret':'')+'">'+(it.returned?'현실로 돌아감 · ':'먼지 창고에 보관 중 · ')+esc(it.outcome)+'</span>'+
+     '<div class="meter" aria-hidden="true"><i style="width:'+pct+'%"></i></div>'+
+     '<small>선명도 '+pct+'% · '+(it.returned?'다시 찾은 물건이라 창고에서는 거의 투명합니다.':'설문의 “지금도 생각나는 정도” 응답을 1–5에서 환산한 잠정값입니다. 공간에서는 흐리게 떠 있다가, 열어 본 동안만 라이트박스 위에 선명하게 보입니다.')+'</small></div>';
+  if(msg)h+='<div class="quote">“'+esc(msg)+'”</div>';
+  it.recs.forEach(r=>{h+='<section class="rec"><h3>'+(r.src==='A'?'설문 A · 학교 경험 설문':'설문 B · 국민대 분실물 설문')+' · '+r.ts+' 응답</h3>';
+    if(r.shift)h+='<div class="warn">원본 시트에서 이 응답의 열이 밀려 있어 일부 항목은 확인이 필요합니다.</div>';
+    h+='<dl>'+r.fields.map(([k,v])=>'<div><dt>'+esc(k)+'</dt><dd>'+esc(v)+'</dd></div>').join('')+'</dl></section>';});
+  if(it.note)h+='<div class="foot">비고 · '+esc(it.note)+'</div>';
+  h+='<div class="foot">응답자의 연락처와 이름은 아카이브에 싣지 않았습니다.</div>';
+  body.innerHTML=h;body.scrollTop=0;sheet.classList.add('open');sheet.setAttribute('aria-hidden','false');
+  if(fly)focusItem(it);}
+function closeSheet(){setSharp(null);sheet.classList.remove('open');sheet.setAttribute('aria-hidden','true');current=null;}
+document.getElementById('close').onclick=closeSheet;
+function step(d){const list=ITEMS.filter(i=>i.on);if(!list.length)return;let i=current?list.indexOf(current):-1;i=(i+d+list.length)%list.length;openItem(list[i]);}
+document.getElementById('prev').onclick=()=>step(-1);document.getElementById('next').onclick=()=>step(1);
+
+/* ---------- input ---------- */
+const el=renderer.domElement, ray=new THREE.Raycaster(), ndc=new THREE.Vector2(), tip=document.getElementById('tip');
+let drag=null, pinch=null, hover=null;const ptrs=new Map();
+function pick(x,y){const r=el.getBoundingClientRect();ndc.set((x-r.left)/r.width*2-1,-(y-r.top)/r.height*2+1);ray.setFromCamera(ndc,camera);
+  const hit=ray.intersectObjects(meshes.filter(m=>m.userData.it.on),false)[0];return hit?hit.object.userData.it:null;}
+el.addEventListener('pointerdown',e=>{el.setPointerCapture(e.pointerId);ptrs.set(e.pointerId,{x:e.clientX,y:e.clientY});
+  if(ptrs.size===1)drag={x:e.clientX,y:e.clientY,sx:e.clientX,sy:e.clientY,moved:0};
+  if(ptrs.size===2){const [a,b]=[...ptrs.values()];pinch=Math.hypot(a.x-b.x,a.y-b.y);drag=null;}});
+el.addEventListener('pointermove',e=>{
+  if(ptrs.has(e.pointerId))ptrs.set(e.pointerId,{x:e.clientX,y:e.clientY});
+  if(pinch!=null&&ptrs.size===2){const [a,b]=[...ptrs.values()];const d=Math.hypot(a.x-b.x,a.y-b.y);move((d-pinch)*0.12);pinch=d;fly=null;return;}
+  if(drag){const dx=e.clientX-drag.x,dy=e.clientY-drag.y;drag.x=e.clientX;drag.y=e.clientY;drag.moved+=Math.abs(dx)+Math.abs(dy);
+    if(drag.moved>5){fly=null;
+      if(mode==='3d'){cam.yaw+=dx*0.0035;cam.pitch=THREE.MathUtils.clamp(cam.pitch+dy*0.0035,-1.2,1.2);}
+      else{const k=(cam.pos.z-Z2)*0.0018;cam.pos.x-=dx*k;cam.pos.y+=dy*k;}}
+    return;}
+  if(e.pointerType==='mouse'){const it=pick(e.clientX,e.clientY);hover=it;el.style.cursor=it?'pointer':'grab';
+    if(it){tip.hidden=false;tip.textContent='No.'+String(it.no).padStart(3,'0')+' · '+it.name;tip.style.left=e.clientX+'px';tip.style.top=e.clientY+'px';}else tip.hidden=true;}});
+function up(e){ptrs.delete(e.pointerId);if(ptrs.size<2)pinch=null;
+  if(drag&&drag.moved<=5&&ptrs.size===0){const it=pick(e.clientX,e.clientY);if(it)openItem(it);}
+  if(ptrs.size===0)drag=null;}
+el.addEventListener('pointerup',up);el.addEventListener('pointercancel',up);
+el.addEventListener('pointerleave',()=>{tip.hidden=true;hover=null;});
+el.addEventListener('wheel',e=>{e.preventDefault();fly=null;move(-e.deltaY*(e.ctrlKey?0.25:0.05));},{passive:false});
+function move(a){if(mode==='3d'){const f=new THREE.Vector3(-Math.sin(cam.yaw)*Math.cos(cam.pitch),Math.sin(cam.pitch),-Math.cos(cam.yaw)*Math.cos(cam.pitch));vel.addScaledVector(f,a*0.5);}
+  else{cam.pos.z=THREE.MathUtils.clamp(cam.pos.z-a*1.2,Z2+14,Z2+dist2D()*1.6);}}
+const keys={};
+addEventListener('keydown',e=>{if(e.target.tagName==='INPUT')return;keys[e.key.toLowerCase()]=true;if(e.key==='Escape')closeSheet();
+  if(e.key==='ArrowRight'&&current)step(1);if(e.key==='ArrowLeft'&&current)step(-1);});
+addEventListener('keyup',e=>{keys[e.key.toLowerCase()]=false;});
+function hold(btn,a){let id=null;const go=()=>{fly=null;move(a)};btn.addEventListener('pointerdown',e=>{e.preventDefault();go();id=setInterval(go,40);});
+  ['pointerup','pointerleave','pointercancel'].forEach(t=>btn.addEventListener(t,()=>{clearInterval(id);}));}
+hold(document.getElementById('fwd'),1.2);hold(document.getElementById('back'),-1.2);
+
+/* ---------- loop ---------- */
+function resize(){const w=stage.clientWidth,h=stage.clientHeight;renderer.setSize(w,h,false);camera.aspect=w/h;camera.updateProjectionMatrix();}
+addEventListener('resize',resize);resize();
+const ease=t=>t<.5?4*t*t*t:1-Math.pow(-2*t+2,3)/2;
+const clock=new THREE.Clock();const tmp=new THREE.Vector3();
+function frame(){requestAnimationFrame(frame);const dt=Math.min(clock.getDelta(),.05),T=clock.elapsedTime;
+  // mode morph
+  const sp=RM?1:dt/1.3;tMode+=Math.sign(tModeTarget-tMode)*Math.min(Math.abs(tModeTarget-tMode),sp);const m=ease(tMode);
+  // keys
+  if(mode==='3d'){const f=new THREE.Vector3(-Math.sin(cam.yaw),0,-Math.cos(cam.yaw)),r=new THREE.Vector3(Math.cos(cam.yaw),0,-Math.sin(cam.yaw));const a=26*dt;
+    if(keys.w||keys.arrowup){vel.addScaledVector(f,a);fly=null}if(keys.s||keys.arrowdown){vel.addScaledVector(f,-a);fly=null}
+    if(keys.d){vel.addScaledVector(r,a);fly=null}if(keys.a){vel.addScaledVector(r,-a);fly=null}
+    if(keys.e){vel.y+=a;fly=null}if(keys.q){vel.y-=a;fly=null}
+    cam.pos.addScaledVector(vel,dt*4);vel.multiplyScalar(Math.pow(.04,dt));}
+  else vel.set(0,0,0);
+  if(fly){fly.t+=dt/fly.dur;const k=ease(Math.min(fly.t,1));cam.pos.lerpVectors(fly.from,fly.to,k);
+    let dy=fly.yaw1-fly.yaw0;dy=Math.atan2(Math.sin(dy),Math.cos(dy));cam.yaw=fly.yaw0+dy*k;cam.pitch=fly.p0+(fly.p1-fly.p0)*k;if(fly.t>=1)fly=null;}
+  camera.position.copy(cam.pos);camera.rotation.set(cam.pitch,cam.yaw,0);
+  // items
+  ITEMS.forEach(it=>{const me=it.mesh;me.position.lerpVectors(it.p3,it.p2,m);if(!RM)me.position.y+=Math.sin(T*.6+it.phase)*.35*(1-m);
+    me.quaternion.copy(camera.quaternion);const target=(it.on?1:.1);me.material.opacity+=(target-me.material.opacity)*Math.min(1,dt*8);
+    const sc=(hover===it||current===it)?1.1:1;me.scale.setScalar(me.scale.x+(sc-me.scale.x)*Math.min(1,dt*10));});
+  HUB_ORDER.forEach(k=>{const s=hubNodes[k];s.position.lerpVectors(s.userData.p3,s.userData.p2,m);
+    s.material.opacity=(hubFilter==='all'||hubFilter===k)?1:.25;});
+  let i=0;pairs.forEach(([a,b])=>{const p=a.mesh.position,q=b?b.mesh.position:hubNodes[a.hub].position;lp[i++]=p.x;lp[i++]=p.y;lp[i++]=p.z;lp[i++]=q.x;lp[i++]=q.y;lp[i++]=q.z;});
+  lineGeo.attributes.position.needsUpdate=true;
+  grid.material.opacity=.55*(1-m);scene.fog.far=420+m*400;
+  renderer.render(scene,camera);}
+frame();
+</script>
+
+</body></html>

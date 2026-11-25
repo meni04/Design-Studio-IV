@@ -1,0 +1,523 @@
+<!doctype html><html><head><meta charset=utf8><meta name=viewport content="width=device-width,initial-scale=1,viewport-fit=cover"><style>:root{color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}html{scroll-padding-top:env(safe-area-inset-top,0px)}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#fff;color:#000}img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}</style></head><body>
+<title>Mote the Dust Lump</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Caveat:wght@600;700&family=Karla:wght@400;600&display=swap">
+<style>
+  /* Layout: a product-photo sweep. One full-bleed studio stage, the name small in the top-left
+     corner, a quiet control strip at the bottom. Deliberately single-theme: a studio backdrop
+     is always this warm white, so the lighting on the fur stays true in any viewer theme. */
+  :root {
+    --sweep:     #f2efea;   /* studio paper sweep */
+    --sweep-2:   #e3ded6;   /* falloff at the edges */
+    --ink:       #2a2621;
+    --ink-soft:  #7a7268;
+    --twine:     #a88a5f;   /* the jute colour of its stray hairs, used for focus + slider */
+    --font-hand: "Caveat", "Segoe Print", "Comic Sans MS", cursive;
+    --font-body: "Karla", "Segoe UI", system-ui, sans-serif;
+    color-scheme: light;
+  }
+  html, body { height: 100%; }
+  body {
+    background: radial-gradient(ellipse 80% 70% at 50% 42%, var(--sweep) 45%, var(--sweep-2) 100%) fixed, var(--sweep);
+    color: var(--ink); font-family: var(--font-body); overflow: hidden;
+  }
+  #stage { position: fixed; inset: 0; touch-action: none; }
+  #stage canvas { display: block; width: 100%; height: 100%; cursor: grab; }
+  #stage canvas:active { cursor: grabbing; }
+
+  .label {
+    position: fixed; z-index: 2; pointer-events: none;
+    top: calc(env(safe-area-inset-top, 0px) + 20px); left: 0; right: 0;
+    padding-left: max(16px, env(safe-area-inset-left, 0px));
+    padding-right: max(16px, env(safe-area-inset-right, 0px));
+    display: flex; flex-direction: column; gap: 4px; max-width: 34rem;
+  }
+  .label .tag { font-size: 11px; letter-spacing: .14em; text-transform: uppercase; color: var(--ink-soft); }
+  .label h1 { margin: 0; font: 700 clamp(44px, 8vw, 72px)/.9 var(--font-hand); letter-spacing: -.01em; text-wrap: balance; }
+  .label p { margin: 4px 0 0; font-size: 14px; line-height: 1.55; color: var(--ink-soft); max-width: 32ch; }
+
+  .controls {
+    position: fixed; z-index: 2; left: 0; right: 0;
+    bottom: calc(env(safe-area-inset-bottom, 0px) + 18px);
+    padding-left: max(16px, env(safe-area-inset-left, 0px));
+    padding-right: max(16px, env(safe-area-inset-right, 0px));
+    display: flex; flex-wrap: wrap; justify-content: center; align-items: center; gap: 12px 20px;
+  }
+  .controls button {
+    font: 700 22px/1 var(--font-hand); color: var(--sweep); background: var(--ink);
+    border: 0; border-radius: 999px; padding: 8px 22px 10px; cursor: pointer; transition: transform .15s ease;
+  }
+  .controls button:hover { transform: translateY(-2px); }
+  .controls button:active { transform: translateY(1px); }
+  .controls button:focus-visible, .controls input:focus-visible { outline: 2px solid var(--twine); outline-offset: 3px; }
+  .faces { display: flex; flex-wrap: wrap; justify-content: center; gap: 6px; flex-basis: 100%; }
+  .controls .faces button {
+    font: 600 13px/1 var(--font-body); letter-spacing: .02em; padding: 7px 12px;
+    color: var(--ink); background: transparent; border: 1px solid var(--ink-soft);
+  }
+  .controls .faces button[aria-pressed="true"] { color: var(--sweep); background: var(--ink); border-color: var(--ink); }
+  .controls .faces button:hover { transform: translateY(-1px); }
+  .slider { display: flex; align-items: center; gap: 10px; font-size: 13px; color: var(--ink-soft); }
+  .slider label { font: 700 21px/1 var(--font-hand); color: var(--ink); }
+  .slider input { width: 140px; accent-color: var(--twine); }
+  .slider output { font-variant-numeric: tabular-nums; min-width: 3.2em; }
+  #status {
+    position: fixed; inset: 0; display: grid; place-items: center; pointer-events: none;
+    font: 700 26px var(--font-hand); color: var(--ink-soft);
+  }
+  @media (max-width: 640px) { .label p { font-size: 13px; } }
+</style>
+
+<div id="stage" aria-label="3D view of Mote, a realistic fluffy dust bunny with curly fibres, bead eyes and tiny twine arms and legs"></div>
+<div id="status">gathering lint…</div>
+
+<header class="label">
+  <span class="tag">Dust bunny · studio portrait</span>
+  <h1>Mote</h1>
+  <p>A lump of dust from under the sofa, held together by lint, stray hair and a few scraps of paper. It found your earbuds. Drag to turn it, tap it and it beams.</p>
+</header>
+
+<div class="controls">
+  <div class="faces" id="faces" role="group" aria-label="Expression">
+    <button type="button" data-expr="neutral" aria-pressed="true">Calm</button>
+    <button type="button" data-expr="happy" aria-pressed="false">Happy</button>
+    <button type="button" data-expr="curious" aria-pressed="false">Curious</button>
+    <button type="button" data-expr="surprised" aria-pressed="false">Surprised</button>
+    <button type="button" data-expr="sleepy" aria-pressed="false">Sleepy</button>
+    <button type="button" data-expr="grumpy" aria-pressed="false">Grumpy</button>
+  </div>
+  <button id="hop" type="button">Hop!</button>
+  <div class="slider">
+    <label for="strays">Stray hairs</label>
+    <input id="strays" type="range" min="0" max="100" step="1" value="100">
+    <output id="straysOut" for="strays">100%</output>
+  </div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+<script>
+(() => {
+  const stage = document.getElementById('stage');
+  const status = document.getElementById('status');
+  const reduceMotion = matchMedia('(prefers-reduced-motion: reduce)').matches;
+  const small = Math.min(innerWidth, innerHeight) < 700;
+
+  let renderer;
+  try { renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true }); }
+  catch (e) { status.textContent = 'This page needs WebGL to draw Mote.'; return; }
+  renderer.setPixelRatio(Math.min(devicePixelRatio || 1, 2));
+  renderer.outputEncoding = THREE.sRGBEncoding;
+  renderer.toneMapping = THREE.ACESFilmicToneMapping;
+  renderer.toneMappingExposure = 1.05;
+  stage.appendChild(renderer.domElement);
+
+  const scene = new THREE.Scene();
+  const camera = new THREE.PerspectiveCamera(30, 1, 0.1, 100);
+  camera.position.set(0.15, 0.35, 5.4);
+  const controls = new THREE.OrbitControls(camera, renderer.domElement);
+  controls.target.set(0, -0.25, 0);
+  controls.enablePan = false; controls.enableDamping = true;
+  controls.minDistance = 2.6; controls.maxDistance = 9;
+  controls.minPolarAngle = 0.35; controls.maxPolarAngle = 1.62;
+
+  // ---------- studio light: a soft environment for reflections + warm key, cool fill ----------
+  const pmrem = new THREE.PMREMGenerator(renderer);
+  const env = new THREE.Scene();
+  env.add(new THREE.Mesh(new THREE.BoxGeometry(20, 20, 20), new THREE.MeshBasicMaterial({ color: 0x8a8580, side: THREE.BackSide })));
+  const softbox = (w, h, x, y, z, c) => { const m = new THREE.Mesh(new THREE.PlaneGeometry(w, h), new THREE.MeshBasicMaterial({ color: c, side: THREE.DoubleSide })); m.position.set(x, y, z); m.lookAt(0, 0, 0); env.add(m); };
+  softbox(8, 6, 4, 6, 6, 0xffffff); softbox(6, 4, -6, 3, 2, 0xd9e2ff); softbox(10, 3, 0, -6, 0, 0xf2e8da);
+  scene.environment = pmrem.fromScene(env, 0.04).texture;
+
+  scene.add(new THREE.HemisphereLight(0xffffff, 0xcfc4b4, 0.55));
+  const key = new THREE.DirectionalLight(0xfff1e0, 1.5); key.position.set(2.5, 4, 3.5); scene.add(key);
+  const fill = new THREE.DirectionalLight(0xdfe6ff, 0.45); fill.position.set(-3, 1.5, 1); scene.add(fill);
+  const back = new THREE.DirectionalLight(0xffffff, 0.9); back.position.set(-1, 3, -4); scene.add(back); // rim on the flyaways
+
+  // ---------- helpers ----------
+  const V = THREE.Vector3, UP = new V(0, 1, 0), XA = new V(1, 0, 0);
+  const rnd = (a, b) => a + Math.random() * (b - a);
+  const randDir = () => { const u = rnd(-1, 1), t = rnd(0, Math.PI * 2), r = Math.sqrt(1 - u * u); return new V(r * Math.cos(t), u, r * Math.sin(t)); };
+  const lin = hex => new THREE.Color(hex).convertSRGBToLinear();
+  const GROUND = -0.98;
+
+  // Geometry buffer that many thin tubes are appended into, so each fibre population is one draw call.
+  function makeBuffer() { return { pos: [], nor: [], col: [], free: [], idx: [], v: 0, ends: [] }; }
+  const tT = new V(), tN = new V(), tB = new V(), tD = new V();
+  function tube(B, pts, r0, color, freeAt) {
+    const n = pts.length, RS = 3, start = B.v;
+    for (let i = 0; i < n; i++) {
+      tT.subVectors(pts[Math.min(i + 1, n - 1)], pts[Math.max(i - 1, 0)]).normalize();
+      tN.crossVectors(tT, Math.abs(tT.y) < 0.95 ? UP : XA).normalize();
+      tB.crossVectors(tT, tN);
+      const s = i / (n - 1), r = r0 * (1 - 0.6 * s), p = pts[i];
+      const shade = 0.88 + 0.24 * s + rnd(-0.04, 0.04);            // tips catch more light
+      const f = freeAt(s, p);
+      for (let k = 0; k < RS; k++) {
+        const a = (k / RS) * Math.PI * 2;
+        tD.copy(tN).multiplyScalar(Math.cos(a)).addScaledVector(tB, Math.sin(a));
+        B.pos.push(p.x + tD.x * r, p.y + tD.y * r, p.z + tD.z * r);
+        B.nor.push(tD.x, tD.y, tD.z);
+        B.col.push(color.r * shade, color.g * shade, color.b * shade);
+        B.free.push(f);
+      }
+    }
+    for (let i = 0; i < n - 1; i++) for (let k = 0; k < RS; k++) {
+      const a = start + i * RS + k, b = start + i * RS + (k + 1) % RS, c = a + RS, d = b + RS;
+      B.idx.push(a, c, b, b, c, d);
+    }
+    B.v += n * RS; B.ends.push(B.idx.length);
+  }
+  // A curly fibre: walks forward, coiling around its own path, optionally sagging to the floor.
+  function curl(start, dir, len, segs, curlR, turns, wander, gravity) {
+    const pts = [], p = start.clone(), h = dir.clone().normalize(), u = new V(), w = new V();
+    const phase = rnd(0, Math.PI * 2), step = len / segs, kink = rnd(0.6, 1.4);
+    for (let i = 0; i <= segs; i++) {
+      u.crossVectors(h, Math.abs(h.y) < 0.95 ? UP : XA).normalize(); w.crossVectors(h, u);
+      const a = phase + (i / segs) * turns * Math.PI * 2 * kink + Math.sin(i * 0.7) * 0.6; // irregular, not a perfect spring
+      const rr = curlR * Math.min(1, i / 3) * rnd(0.75, 1.25);
+      const q = p.clone().addScaledVector(u, Math.cos(a) * rr).addScaledVector(w, Math.sin(a) * rr);
+      q.y = Math.max(q.y, GROUND + 0.006);
+      pts.push(q);
+      h.x += rnd(-1, 1) * wander; h.y += rnd(-1, 1) * wander - gravity * step; h.z += rnd(-1, 1) * wander; h.normalize();
+      p.addScaledVector(h, step);
+      if (p.y < GROUND + 0.008) { p.y = GROUND + 0.008; h.y = Math.abs(h.y) * 0.15; h.normalize(); } // lies on the floor
+    }
+    return pts;
+  }
+  function toMesh(B, mat) {
+    const g = new THREE.BufferGeometry();
+    g.setAttribute('position', new THREE.Float32BufferAttribute(B.pos, 3));
+    g.setAttribute('normal', new THREE.Float32BufferAttribute(B.nor, 3));
+    g.setAttribute('color', new THREE.Float32BufferAttribute(B.col, 3));
+    g.setAttribute('aFree', new THREE.Float32BufferAttribute(B.free, 1));
+    g.setIndex(B.idx);
+    const m = new THREE.Mesh(g, mat); m.frustumCulled = false; return m;
+  }
+
+  // Fibre material: matte, vertex-coloured, with a gentle breeze in the vertex shader so the tips drift.
+  const uTime = { value: 0 }, uJig = { value: 0 };
+  const fiberMat = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.92, metalness: 0, envMapIntensity: 0.6 });
+  fiberMat.onBeforeCompile = sh => {
+    sh.uniforms.uTime = uTime; sh.uniforms.uJig = uJig;
+    sh.vertexShader = 'attribute float aFree;\nuniform float uTime;\nuniform float uJig;\n' + sh.vertexShader.replace('#include <begin_vertex>', `
+      #include <begin_vertex>
+      vec3 breeze = vec3(sin(uTime * 1.3 + position.y * 4.0 + position.z * 2.0),
+                         sin(uTime * 1.7 + position.x * 3.0) * 0.6,
+                         cos(uTime * 1.1 + position.x * 4.0 + position.y * 2.0));
+      transformed += breeze * aFree * (0.012 + uJig * 0.06);`);
+  };
+
+  // ---------- rig ----------
+  const mote = new THREE.Group(); scene.add(mote);
+  const rig = new THREE.Group(); mote.add(rig);
+  // The face is a small, slightly curved patch on the front; everything on it is placed in its local x/y.
+  const face = new THREE.Group();
+  face.position.copy(new V(0, 0.17, 0.985).normalize()).multiplyScalar(0.985);
+  face.lookAt(face.position.clone().multiplyScalar(2));
+  rig.add(face); face.updateMatrixWorld(true);
+  const onFace = (x, y, z = 0) => new V(x, y, z - (x * x + y * y) * 0.5);
+  const faceDir = (x, y) => face.localToWorld(onFace(x, y)).normalize();
+  // fur is trimmed short around the eyes, brows and mouth, and where the hands hold the earbuds
+  const EARBUD_POS = [new V(-0.5, -0.5, 1.07), new V(0.5, -0.47, 1.07)];
+  const clearings = [
+    ...[-0.2, 0.2].map(x => ({ d: faceDir(x, 0.08), a: 0.3 })),
+    ...[-0.2, 0.2].map(x => ({ d: faceDir(x, 0.21), a: 0.16 })),
+    { d: faceDir(0, -0.1), a: 0.2 },
+    ...EARBUD_POS.map(p => ({ d: p.clone().normalize(), a: 0.26 })),
+  ];
+  const nearEye = d => clearings.some(c => d.angleTo(c.d) < c.a);
+
+  // felted core so no gaps show through the fuzz
+  const coreTex = (() => {
+    const c = document.createElement('canvas'); c.width = c.height = 256; const x = c.getContext('2d');
+    x.fillStyle = '#a59c90'; x.fillRect(0, 0, 256, 256);
+    for (let i = 0; i < 9000; i++) {
+      const g = Math.floor(rnd(110, 215)); x.fillStyle = `rgba(${g + 8},${g + 2},${g - 8},${rnd(0.2, 0.6)})`;
+      x.save(); x.translate(rnd(0, 256), rnd(0, 256)); x.rotate(rnd(0, 6.3)); x.fillRect(0, 0, rnd(2, 9), 1); x.restore();
+    }
+    const t = new THREE.CanvasTexture(c); t.encoding = THREE.sRGBEncoding; t.wrapS = t.wrapT = THREE.RepeatWrapping; t.repeat.set(3, 2);
+    return t;
+  })();
+  const core = new THREE.Mesh(new THREE.SphereGeometry(0.8, 48, 32), new THREE.MeshStandardMaterial({ map: coreTex, roughness: 1 }));
+  core.scale.set(1, 0.96, 0.98);
+  rig.add(core);
+
+  // palettes: dusty greys and oatmeal for the fuzz, jute for the long flyaways and limbs
+  const FUZZ = ['#cfc5b5', '#b9b0a2', '#a0998f', '#d9d0c1', '#8d877e', '#c6b9a2', '#e2dacd'].map(lin);
+  const JUTE = ['#d5c3a1', '#c9b38c', '#e1d4ba', '#bfa77f', '#d9ccb4'].map(lin);
+  const pick = a => a[Math.floor(Math.random() * a.length)];
+
+  // 1) dense curly fuzz
+  const fuzzB = makeBuffer();
+  const INNER = small ? 1700 : 2700;
+  for (let i = 0; i < INNER; i++) {
+    const d = randDir();
+    const start = d.clone().multiplyScalar(rnd(0.7, 0.86));
+    let len = rnd(0.3, 0.6);
+    if (nearEye(d)) len *= 0.35;
+    if (d.y < -0.85) len *= 0.5;
+    const dir = d.clone().add(randDir().multiplyScalar(0.9));
+    const pts = curl(start, dir, len, 14, rnd(0.015, 0.035), len * rnd(9, 16), 0.35, 0);
+    tube(fuzzB, pts, rnd(0.0045, 0.0085), pick(FUZZ), s => s * 0.6);
+  }
+  rig.add(toMesh(fuzzB, fiberMat));
+
+  // 2) long stray flyaways, sagging onto the floor
+  const strayB = makeBuffer();
+  const STRAYS = small ? 170 : 260;
+  for (let i = 0; i < STRAYS; i++) {
+    let d; do { d = randDir(); } while (d.z > 0.65 && d.y > -0.2 && d.y < 0.6);   // keep the face clear
+    const start = d.clone().multiplyScalar(rnd(0.78, 0.92));
+    const len = rnd(0.6, 2.1) * (Math.random() < 0.15 ? 1.4 : 1);
+    const gravity = d.y < 0.25 ? rnd(0.5, 1.4) : rnd(0, 0.35);
+    const pts = curl(start, d.clone().add(randDir().multiplyScalar(0.45)), len, Math.round(len * 42), rnd(0.03, 0.075), len * rnd(2.5, 6), 0.22, gravity);
+    tube(strayB, pts, rnd(0.0055, 0.0095), pick(JUTE), (s, p) => s * (p.y > GROUND + 0.03 ? 1 : 0.1));
+  }
+  const strayMesh = toMesh(strayB, fiberMat);
+  rig.add(strayMesh);
+
+  // 3) twisted-twine arms and legs with splayed, curly ends
+  const limbB = makeBuffer();
+  function twine(points, hands) {
+    const path = new THREE.CatmullRomCurve3(points).getPoints(30);
+    const col = pick(JUTE);
+    for (let s = 0; s < 3; s++) {                               // three plies twisted together
+      const ply = path.map((p, i) => {
+        const t = path[Math.min(i + 1, path.length - 1)].clone().sub(path[Math.max(i - 1, 0)]).normalize();
+        const u = new V().crossVectors(t, Math.abs(t.y) < 0.95 ? UP : XA).normalize(), w = new V().crossVectors(t, u);
+        const a = s * 2.09 + i * 0.75, r = 0.016;
+        return p.clone().addScaledVector(u, Math.cos(a) * r).addScaledVector(w, Math.sin(a) * r);
+      });
+      tube(limbB, ply, 0.011, col, s2 => s2 * 0.15);
+    }
+    const end = path[path.length - 1], dirEnd = end.clone().sub(path[path.length - 4]).normalize();
+    hands.forEach(fan => {                                       // splayed little fingers / toes
+      const dir = dirEnd.clone().add(fan).normalize();
+      tube(limbB, curl(end, dir, rnd(0.09, 0.16), 10, 0.012, 1.2, 0.2, 0), 0.007, col, s2 => s2 * 0.3);
+    });
+  }
+  [-1, 1].forEach(side => {
+    const fingers = [-0.6, -0.3, 0, 0.3, 0.6].map(k => new V(-side * 0.5 + k * 0.3, k * 0.5, 0.2));
+    twine([new V(side * 0.6, -0.15, 0.55), new V(side * 0.74, -0.38, 0.78), new V(side * 0.52, -0.5, 1.0)], fingers);
+    const toes = [-0.7, -0.35, 0, 0.35, 0.7].map(k => new V(k * 0.8 + side * 0.3, -0.2, 0.6));
+    twine([new V(side * 0.26, -0.7, 0.45), new V(side * 0.31, -0.86, 0.62), new V(side * 0.34, GROUND + 0.015, 0.76)], toes);
+  });
+  rig.add(toMesh(limbB, fiberMat));
+
+  // 4) scraps of paper caught in the fuzz
+  const paperMat = new THREE.MeshStandardMaterial({ color: 0xf3efe7, roughness: 0.75, side: THREE.DoubleSide });
+  for (let i = 0; i < 11; i++) {
+    let d; do { d = randDir(); } while (nearEye(d) || d.y < -0.6);
+    const shape = new THREE.Shape(), n = 7, R = rnd(0.045, 0.09);
+    for (let k = 0; k < n; k++) {
+      const a = (k / n) * Math.PI * 2, r = R * rnd(0.55, 1.15);
+      k ? shape.lineTo(Math.cos(a) * r, Math.sin(a) * r * 0.75) : shape.moveTo(Math.cos(a) * r, Math.sin(a) * r * 0.75);
+    }
+    const g = new THREE.ShapeGeometry(shape);
+    const pa = g.attributes.position;                             // curl the scrap slightly
+    for (let k = 0; k < pa.count; k++) pa.setZ(k, (pa.getX(k) ** 2) * rnd(2, 5));
+    g.computeVertexNormals();
+    const m = new THREE.Mesh(g, paperMat);
+    m.position.copy(d).multiplyScalar(rnd(0.93, 1.02));
+    m.lookAt(m.position.clone().multiplyScalar(2));
+    m.rotateX(rnd(-0.7, 0.7)); m.rotateY(rnd(-0.7, 0.7)); m.rotateZ(rnd(0, 6.3));
+    rig.add(m);
+  }
+
+  // 5) face: glossy eyeballs with pupils and a catchlight, felt-brown brows, and a mouth
+  const scleraMat = new THREE.MeshPhysicalMaterial({ color: 0xf8f6f1, roughness: 0.22, clearcoat: 1, clearcoatRoughness: 0.08 });
+  const pupilMat = new THREE.MeshStandardMaterial({ color: 0x0b0908, roughness: 0.08, envMapIntensity: 2 });
+  const glintMat = new THREE.MeshBasicMaterial({ color: 0xffffff });
+  const featureMat = new THREE.MeshStandardMaterial({ color: 0x3a312a, roughness: 0.85 });
+  const browGeo = new THREE.TubeGeometry(new THREE.QuadraticBezierCurve3(new V(-0.06, 0, 0), new V(0, 0.02, 0), new V(0.06, 0, 0)), 12, 0.011, 5);
+  const eyes = [-1, 1].map(side => {
+    const g = new THREE.Group(); g.position.copy(onFace(side * 0.2, 0.08)); g.rotation.y = side * 0.2; face.add(g);
+    const ball = new THREE.Group(); g.add(ball);
+    const sclera = new THREE.Mesh(new THREE.SphereGeometry(0.075, 28, 18), scleraMat); sclera.scale.z = 0.55; ball.add(sclera);
+    const pupil = new THREE.Mesh(new THREE.SphereGeometry(0.036, 20, 14), pupilMat); pupil.scale.z = 0.35; pupil.position.z = 0.037; ball.add(pupil);
+    const glint = new THREE.Mesh(new THREE.SphereGeometry(0.011, 10, 8), glintMat); glint.position.set(0.02, 0.025, 0.05); ball.add(glint);
+    const smile = new THREE.Mesh(new THREE.TorusGeometry(0.05, 0.012, 6, 18, Math.PI), featureMat); smile.visible = false; g.add(smile);
+    const brow = new THREE.Mesh(browGeo, featureMat); brow.position.copy(onFace(side * 0.2, 0.21, 0.012)); face.add(brow);
+    return { side, ball, sclera, pupil, smile, brow };
+  });
+  const mouthArc = new THREE.Mesh(new THREE.BufferGeometry(), featureMat);
+  mouthArc.position.copy(onFace(0, -0.1, 0.01)); face.add(mouthArc);
+  const mouthO = new THREE.Mesh(new THREE.TorusGeometry(0.028, 0.009, 6, 20), featureMat);
+  mouthO.position.copy(onFace(0, -0.11, 0.012)); face.add(mouthO);
+  let lastCurve = null;
+  function shapeMouth(curve) {                     // curve: +1 big smile, 0 flat, -1 frown
+    if (lastCurve !== null && Math.abs(curve - lastCurve) < 0.01) return;
+    lastCurve = curve;
+    const w = 0.07, pts = [];
+    for (let i = 0; i <= 10; i++) { const x = -w + (2 * w * i) / 10; pts.push(new V(x, curve * 0.04 * ((x / w) ** 2) - curve * 0.02, 0)); }
+    mouthArc.geometry.dispose();
+    mouthArc.geometry = new THREE.TubeGeometry(new THREE.CatmullRomCurve3(pts), 14, 0.009, 5);
+  }
+
+  // 6) little white earbuds, one in each hand (plain, unbranded)
+  const shellMat = new THREE.MeshPhysicalMaterial({ color: 0xfbfbf9, roughness: 0.16, clearcoat: 1, clearcoatRoughness: 0.05 });
+  const tipMat = new THREE.MeshStandardMaterial({ color: 0xe2e1dc, roughness: 0.7 });
+  const grilleMat = new THREE.MeshStandardMaterial({ color: 0x2b2b2b, roughness: 0.6 });
+  const capMat = new THREE.MeshStandardMaterial({ color: 0xc9cbcf, roughness: 0.3, metalness: 0.9 });
+  function earbud() {
+    const g = new THREE.Group();
+    const head = new THREE.Mesh(new THREE.SphereGeometry(0.075, 32, 24), shellMat); head.scale.set(1, 0.92, 1.12); g.add(head);
+    const tip = new THREE.Mesh(new THREE.SphereGeometry(0.048, 24, 16), tipMat); tip.position.set(-0.062, 0.02, 0.02); tip.scale.set(0.8, 1, 1); g.add(tip);
+    const stem = new THREE.Mesh(new THREE.CylinderGeometry(0.026, 0.028, 0.22, 24), shellMat); stem.position.set(0.012, -0.12, 0); g.add(stem);
+    const end = new THREE.Mesh(new THREE.SphereGeometry(0.027, 20, 12), capMat); end.position.set(0.012, -0.23, 0); end.scale.y = 0.55; g.add(end);
+    const grille = new THREE.Mesh(new THREE.CircleGeometry(0.013, 16), grilleMat); grille.position.set(0.024, 0.03, 0.083); grille.scale.x = 1.5; g.add(grille);
+    g.scale.setScalar(1.25);
+    return g;
+  }
+  const buds = EARBUD_POS.map((p, i) => {
+    const b = earbud(); b.position.copy(p);
+    if (i === 0) { b.rotation.set(0.15, 0.55, -0.35); b.scale.x *= -1; } else b.rotation.set(0.25, -0.45, 0.4);
+    rig.add(b); return b;
+  });
+
+  // expressions: each is a set of targets the face eases toward
+  const EXPR = {
+    neutral:   { open: 1,    pupil: 1,    browY: 0,     tilt: 0,     curve: 0.35, o: 0, look: 'cursor' },
+    happy:     { open: 1,    pupil: 1,    browY: 0.025, tilt: -0.15, curve: 1,    o: 0, look: 'cursor', closed: true },
+    surprised: { open: 1.25, pupil: 0.62, browY: 0.05,  tilt: -0.12, curve: 0,    o: 1, look: [0, 0.1] },
+    curious:   { open: 1.06, pupil: 1.12, browY: 0.035, tilt: 0.05,  curve: 0.15, o: 0, look: [0.65, -0.85], cock: 0.12 },
+    sleepy:    { open: 0.3,  pupil: 1,    browY: -0.02, tilt: -0.06, curve: 0.05, o: 0, look: [0, -0.6] },
+    grumpy:    { open: 0.7,  pupil: 0.9,  browY: -0.02, tilt: 0.38,  curve: -0.75, o: 0, look: [-0.3, 0] },
+  };
+  let exprName = 'neutral';
+  const cur = { open: 1, pupil: 1, browY: 0, tilt: 0, curve: 0.35, o: 0, closed: 0, lx: 0, ly: 0, cock: 0 };
+
+  // ---------- contact shadow + a few crumbs on the floor ----------
+  const sh = document.createElement('canvas'); sh.width = sh.height = 256;
+  const sx = sh.getContext('2d');
+  let gr = sx.createRadialGradient(128, 128, 0, 128, 128, 128);
+  gr.addColorStop(0, 'rgba(60,50,40,0.42)'); gr.addColorStop(0.35, 'rgba(60,50,40,0.22)'); gr.addColorStop(1, 'rgba(60,50,40,0)');
+  sx.fillStyle = gr; sx.fillRect(0, 0, 256, 256);
+  const shadowMat = new THREE.MeshBasicMaterial({ map: new THREE.CanvasTexture(sh), transparent: true, depthWrite: false });
+  const shadow = new THREE.Mesh(new THREE.PlaneGeometry(3.2, 2.6), shadowMat);
+  shadow.rotation.x = -Math.PI / 2; shadow.position.y = GROUND; scene.add(shadow);
+
+  const crumbMat = new THREE.MeshStandardMaterial({ color: 0xcdbb9a, roughness: 1 });
+  for (let i = 0; i < 9; i++) {
+    const c = new THREE.Mesh(new THREE.DodecahedronGeometry(rnd(0.012, 0.03), 0), crumbMat);
+    c.position.set(rnd(0.9, 2.0) * (Math.random() < 0.5 ? -1 : 1), GROUND + 0.01, rnd(-0.2, 1.2));
+    c.rotation.set(rnd(0, 6), rnd(0, 6), rnd(0, 6)); scene.add(c);
+  }
+
+  // ---------- interaction ----------
+  const pointer = new THREE.Vector2(0, 0);
+  addEventListener('pointermove', e => pointer.set((e.clientX / innerWidth) * 2 - 1, -(e.clientY / innerHeight) * 2 + 1));
+
+  let y = 0, vy = 0, squash = 0, airborne = false, beam = 0;
+  function hop() {
+    beam = 1.6;                                        // smile for a moment
+    if (airborne) return;
+    vy = 2.6; airborne = true; squash = -0.5; uJig.value = 1;
+  }
+  document.getElementById('hop').addEventListener('click', hop);
+  const ray = new THREE.Raycaster(), down = { x: 0, y: 0 };
+  renderer.domElement.addEventListener('pointerdown', e => { down.x = e.clientX; down.y = e.clientY; });
+  renderer.domElement.addEventListener('pointerup', e => {
+    if (Math.hypot(e.clientX - down.x, e.clientY - down.y) > 6) return;
+    const r = renderer.domElement.getBoundingClientRect();
+    ray.setFromCamera({ x: ((e.clientX - r.left) / r.width) * 2 - 1, y: -((e.clientY - r.top) / r.height) * 2 + 1 }, camera);
+    if (ray.intersectObject(core).length || ray.intersectObjects(eyes.map(e => e.sclera)).length) hop();
+  });
+
+  document.getElementById('faces').addEventListener('click', e => {
+    const b = e.target.closest('[data-expr]'); if (!b) return;
+    exprName = b.dataset.expr; beam = 0;
+    document.querySelectorAll('#faces [data-expr]').forEach(x => x.setAttribute('aria-pressed', x === b));
+  });
+
+  const strIn = document.getElementById('strays'), strOut = document.getElementById('straysOut');
+  const setStrays = () => {
+    const pct = +strIn.value / 100, n = Math.round(STRAYS * pct);
+    strayMesh.geometry.setDrawRange(0, n ? strayB.ends[n - 1] : 0);
+    strOut.value = strIn.value + '%';
+  };
+  strIn.addEventListener('input', setStrays); setStrays();
+
+  function resize() {
+    const w = stage.clientWidth, h = stage.clientHeight;
+    renderer.setSize(w, h, false);
+    camera.aspect = w / h; camera.fov = w / h < 0.8 ? 44 : 30;
+    camera.updateProjectionMatrix();
+  }
+  new ResizeObserver(resize).observe(stage); resize();
+  status.hidden = true;
+
+  // ---------- loop ----------
+  let last = performance.now() / 1000, nextBlink = 2, blinkT = -1;
+  const t0 = last;
+  function frame() {
+    const now = performance.now() / 1000, dt = Math.min(0.05, now - last); last = now;
+    const t = now - t0;
+    uTime.value = reduceMotion ? 0 : t;
+    uJig.value = Math.max(0, uJig.value - dt * 1.2);
+
+    if (airborne) {
+      vy -= 9 * dt; y += vy * dt;
+      if (y <= 0) { y = 0; vy = 0; airborne = false; squash = 0.8; uJig.value = 1; }
+    }
+    squash += (0 - squash) * Math.min(1, dt * 6);
+    mote.position.y = y;
+    const breath = reduceMotion ? 0 : Math.sin(t * 1.8) * 0.012;
+    const sy = 1 + breath - squash * 0.16, sxz = 1 - breath * 0.5 + squash * 0.1;
+    rig.scale.set(sxz, sy, sxz);
+    rig.position.y = (sy - 1) * 0.98;
+
+    // turns gently toward the cursor
+    rig.rotation.y += (pointer.x * 0.35 - rig.rotation.y) * Math.min(1, dt * 3);
+    rig.rotation.x += (-pointer.y * 0.1 - rig.rotation.x) * Math.min(1, dt * 3);
+
+    // expression: a tap makes it beam for a moment, otherwise it wears the chosen face
+    beam = Math.max(0, beam - dt);
+    const tgt = EXPR[beam > 0 ? 'happy' : exprName];
+    const ease = Math.min(1, dt * 7);
+    ['open', 'pupil', 'browY', 'tilt', 'curve', 'o'].forEach(k => cur[k] += (tgt[k] - cur[k]) * ease);
+    cur.closed += ((tgt.closed ? 1 : 0) - cur.closed) * ease;
+    cur.cock += ((tgt.cock || 0) - cur.cock) * ease;
+    const look = tgt.look === 'cursor' ? [pointer.x * 0.8, pointer.y * 0.8] : tgt.look;
+    cur.lx += (look[0] - cur.lx) * Math.min(1, dt * 6); cur.ly += (look[1] - cur.ly) * Math.min(1, dt * 6);
+
+    // blinking (slow and heavy when sleepy)
+    if (t > nextBlink && blinkT < 0) blinkT = 0;
+    let blink = 1;
+    if (blinkT >= 0) {
+      blinkT += dt;
+      const p = blinkT / (exprName === 'sleepy' ? 0.5 : 0.14);
+      blink = Math.max(0.06, Math.min(1, p < 0.5 ? 1 - p * 2 : (p - 0.5) * 2));
+      if (p >= 1) { blinkT = -1; nextBlink = t + 2.5 + Math.random() * 3.5; }
+    }
+
+    const closed = cur.closed > 0.5;
+    eyes.forEach(e => {
+      e.ball.visible = !closed; e.smile.visible = closed;
+      e.ball.scale.set(1 + (cur.open - 1) * 0.5, Math.max(0.06, cur.open * blink), 1);
+      e.pupil.scale.set(cur.pupil, cur.pupil, 0.35);
+      e.pupil.position.set(THREE.MathUtils.clamp(cur.lx * 0.028, -0.03, 0.03), THREE.MathUtils.clamp(cur.ly * 0.028, -0.03, 0.03), 0.037);
+      e.brow.position.y = 0.21 + cur.browY + (e.side > 0 ? cur.cock * 0.25 : 0);   // curious: one brow up
+      e.brow.rotation.z = e.side * cur.tilt;
+    });
+    shapeMouth(cur.curve);
+    mouthArc.visible = cur.o < 0.5;
+    mouthO.visible = cur.o >= 0.5;
+    mouthO.scale.set(0.8 + cur.o * 0.2, 0.9 + cur.o * 0.4, 1);
+    face.rotation.z = -cur.cock * 0.5;
+    buds.forEach((b, i) => { b.rotation.x = (i ? 0.25 : 0.15) + Math.sin(t * 1.6 + i) * 0.04; });  // fidgeting with them
+
+    const k = 1 / (1 + y * 1.2);
+    shadow.scale.setScalar(0.85 + 0.15 * k); shadowMat.opacity = k;
+
+    controls.update();
+    renderer.render(scene, camera);
+    requestAnimationFrame(frame);
+  }
+  requestAnimationFrame(frame);
+})();
+</script>
+
+</body></html>
